@@ -896,57 +896,125 @@ async function pageReceiving(root) {
       $("#recSupplier").value = created.id;
     });
   $("#addRecLine").onclick = () => {
-    const item = items.find((i) => i.id == $("#recItemId").value);
-    if (!item) return toast("Select an item from the dropdown", "error");
-    const qty = Number($("#recQty").value);
-    if (!Number.isInteger(qty) || qty < 1)
+    // --------------------------------------------------
+    // 1. Get selected item FIRST
+    // --------------------------------------------------
+
+    const itemId = $("#recItemId").value;
+
+    const selectedItem = items.find(
+      (item) => String(item.id) === String(itemId),
+    );
+
+    if (!selectedItem) {
+      return toast("Select an item from the dropdown", "error");
+    }
+
+    // --------------------------------------------------
+    // 2. Get quantity
+    // --------------------------------------------------
+
+    const quantity = Number($("#recQty").value);
+
+    if (!Number.isInteger(quantity) || quantity < 1) {
       return toast("Enter a valid quantity", "error");
+    }
+
+    // --------------------------------------------------
+    // 3. Get location
+    // --------------------------------------------------
+
+    const locationId = Number($("#recLocation").value);
+
+    if (!locationId) {
+      return toast("Select a location", "error");
+    }
+
+    const selectedLocation = refs.locations.find(
+      (location) => location.id == locationId,
+    );
+
+    // --------------------------------------------------
+    // 4. COPY all form values into a new object
+    // --------------------------------------------------
+
     const line = {
-      itemId: item.id,
-      itemCode: item.code,
-      itemName: item.name,
-      category: item.category,
-      unitOfMeasure: item.unitOfMeasure,
-      quantity: qty,
+      itemId: selectedItem.id,
+
+      itemCode: selectedItem.code,
+
+      itemName: selectedItem.name,
+
+      category: selectedItem.category,
+
+      unitOfMeasure: selectedItem.unitOfMeasure,
+
+      quantity: quantity,
+
       brand: $("#recBrand").value.trim(),
+
       batchNumber:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? null
           : $("#recBatch").value.trim() || null,
+
       expiryDate:
-        item.category === "EQUIPMENT" ? null : $("#recExpiry").value || null,
+        selectedItem.category === "EQUIPMENT"
+          ? null
+          : $("#recExpiry").value || null,
+
       model:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recModel").value.trim() || null
           : null,
+
       serialNumber:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recSerial").value.trim() || null
           : null,
+
       assetTag:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recAsset").value.trim() || null
           : null,
-      locationId: Number($("#recLocation").value),
-      location: refs.locations.find((x) => x.id == $("#recLocation").value)
-        ?.name,
+
+      locationId: locationId,
+
+      location: selectedLocation?.name || "",
     };
-    if (item.category === "EQUIPMENT" && (!line.serialNumber || !line.assetTag))
+
+    // --------------------------------------------------
+    // 5. Equipment validation
+    // --------------------------------------------------
+
+    if (
+      selectedItem.category === "EQUIPMENT" &&
+      (!line.serialNumber || !line.assetTag)
+    ) {
       return toast(
         "Serial number and asset tag are required for equipment",
         "error",
       );
+    }
+
+    // --------------------------------------------------
+    // 6. IMPORTANT: ADD THE LINE FIRST
+    // --------------------------------------------------
+
     app.draftReceiving.push(line);
-    [
-      "#recBrand",
-      "#recBatch",
-      "#recExpiry",
-      "#recModel",
-      "#recSerial",
-      "#recAsset",
-    ].forEach((s) => ($(s).value = ""));
-    if (!$("#recQty").disabled) $("#recQty").value = 1;
+
+    // --------------------------------------------------
+    // 7. IMPORTANT: RENDER IT BEFORE CLEARING
+    // --------------------------------------------------
+
     renderReceivingDraft();
+
+    // --------------------------------------------------
+    // 8. NOW clear the item-entry form
+    // --------------------------------------------------
+
+    clearReceivingItemForm();
+
     toast("Delivery line added");
   };
   $("#clearRec").onclick = () => {
@@ -2598,6 +2666,33 @@ function openGenerateReport(type, refs) {
     }
   };
 }
+
+function clearReceivingItemForm() {
+  // Clear selected item
+  $("#recItemInput").value = "";
+  $("#recItemId").value = "";
+
+  // Reset quantity and UOM
+  $("#recQty").value = 1;
+  $("#recUom").value = "";
+
+  // Clear medicine/supply fields
+  $("#recBrand").value = "";
+  $("#recBatch").value = "";
+  $("#recExpiry").value = "";
+
+  // Clear equipment fields
+  $("#recModel").value = "";
+  $("#recSerial").value = "";
+  $("#recAsset").value = "";
+
+  // Clear location
+  $("#recLocation").value = "";
+
+  // Return fields to their default enabled/disabled state
+  syncItem(null);
+}
+
 function showReport(report) {
   const rows = report.rows || [];
   let content = "";
