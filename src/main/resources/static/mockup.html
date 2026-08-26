@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Clinic Inventory Management System</title>
+  <link rel="stylesheet" href="./css/app.css?v=20260825-2">
+</head>
+<body>
+  <div id="app"><div class="boot-screen"><div class="spinner"></div><p>Connecting to Clinic Inventory Management System…</p></div></div>
+  <div id="toastHost" class="toast-host" aria-live="polite"></div>
+  <div id="modalHost"></div>
+  <script>
+    window.__CIMS_SCRIPT_LOADED__ = false;
+    window.addEventListener('error', function (event) {
+      if (!window.__CIMS_BOOT_STARTED__) {
+        var host = document.getElementById('app');
+        if (host) host.innerHTML = '<div class="login-shell"><div class="login-card"><div class="brand-mark">CIMS</div><h1>Frontend startup error</h1><div class="notice error">' + (event.message || 'The JavaScript application could not start.') + '</div><p>Restart Spring Boot, then open <b>http://localhost:8080/</b> and press <b>Ctrl+F5</b>.</p></div></div>';
+      }
+    });
+    window.setTimeout(function () {
+      if (!window.__CIMS_SCRIPT_LOADED__) {
+        var host = document.getElementById('app');
+        if (host) host.innerHTML = '<div class="login-shell"><div class="login-card"><div class="brand-mark">CIMS</div><h1>Frontend file did not load</h1><div class="notice error">The JavaScript application could not be loaded.</div><p>If you opened index.html directly from Eclipse or File Explorer, do not use that window. Start <b>ClinicInventoryApplication</b>, then open <b>http://localhost:8080/</b>.</p><p class="small muted">If you are already on localhost:8080, restart Spring Boot and use Ctrl+F5 to bypass an old cached frontend.</p></div></div>';
+      }
+    }, 3500);
+  </script>
+  <script src="./js/app.js?v=20260825-2" defer onerror="window.__CIMS_SCRIPT_LOADED__=false"></script>
+</body>
+</html>
