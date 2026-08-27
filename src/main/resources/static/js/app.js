@@ -856,13 +856,9 @@ function bindReceivingCombo(items, onChange) {
     hidden.value = "";
     draw();
   };
-  document.addEventListener(
-    "mousedown",
-    (e) => {
-      if (!$("#recCombo")?.contains(e.target)) menu.classList.remove("open");
-    },
-    { once: true },
-  );
+  document.addEventListener("mousedown", (e) => {
+    if (!$("#recCombo")?.contains(e.target)) menu.classList.remove("open");
+  });
 }
 
 async function pageReceiving(root) {
