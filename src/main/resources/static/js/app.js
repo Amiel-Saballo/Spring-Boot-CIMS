@@ -2507,7 +2507,7 @@ function addReference(path, label) {
 function openReorder(item, refs) {
   const body = modal(
     `Edit reorder settings · ${item.name}`,
-    `<form id="reorderForm"><div class="form-grid"><div class="field"><label class="req">Reorder Level</label><input id="rrLevel" type="number" min="0" max="100" value="${item.reorderLevel}"></div><div class="field"><label class="req">Reorder Quantity</label><input id="rrQty" type="number" min="0" max="500" value="${item.reorderQuantity}"></div></div><div class="modal-actions"><button type="button" class="btn" id="rrCancel">Cancel</button><button class="btn primary">Save</button></div></form>`,
+    `<form id="reorderForm"><div class="form-grid"><div class="field"><label class="req">Reorder Level</label><input id="rrLevel" type="number" min="0" max="100" value="${item.reorderLevel}"></div><div class="field"><label class="req">Reorder Quantity</label><input id="rrQty" type="number" min="1" max="500" value="${item.reorderQuantity}"></div></div><div class="modal-actions"><button type="button" class="btn" id="rrCancel">Cancel</button><button class="btn primary">Save</button></div></form>`,
   );
   $("#rrCancel", body).onclick = closeModal;
   $("#reorderForm", body).onsubmit = async (e) => {
