@@ -243,6 +243,10 @@ public class ReceivingService {
             line.setBatchNumber(null);
             line.setExpiryDate(null);
         } else {
+            if (request.quantity() > 500) {
+                throw new BusinessRuleException(
+                        "Receiving quantity cannot exceed 500");
+            }
             if (item.getCategory() == ItemCategory.MEDICINE) {
                 if (request.expiryDate() == null) {
                     throw new BusinessRuleException(
