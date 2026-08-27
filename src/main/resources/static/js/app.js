@@ -2722,9 +2722,6 @@ function clearReceivingItemForm() {
   $("#recSerial").value = "";
   $("#recAsset").value = "";
 
-  // Clear location
-  $("#recLocation").value = "";
-
   // Return fields to their default enabled/disabled state
   syncItem(null);
 }
