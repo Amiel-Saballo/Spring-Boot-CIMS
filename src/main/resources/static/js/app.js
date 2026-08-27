@@ -870,15 +870,47 @@ async function pageReceiving(root) {
   root.innerHTML = `<div class="stack"><div class="card"><div class="card-head"><h2>Encode Receiving Transaction</h2><span>${badge("PENDING")}</span></div><div class="card-body"><form id="receivingForm"><div class="form-grid"><div class="field span-2"><label class="req">Supplier</label><div class="actions"><select id="recSupplier" style="flex:1">${optionList(suppliers)}</select><button type="button" class="btn" id="addSupplierInline">+ Add Supplier</button></div></div><div class="field"><label class="req">Delivery reference</label><input id="recRef" required></div><div class="field"><label class="req">Date received</label><input id="recDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="recRemarks" maxlength="150" placeholder="Enter receiving remarks (maximum 150 characters)"></textarea><div class="help">Maximum 150 characters</div></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label>${receivingCombo(items)}</div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="recQty" type="number" min="1" value="1"><input id="recUom" disabled placeholder="Unit"></div></div><div class="field"><label>Brand</label><input id="recBrand"></div><div class="field"><label>Batch number <span class="muted">(optional)</span></label><input id="recBatch"></div><div class="field"><label>Expiry date</label><input id="recExpiry" type="date"></div><div class="field"><label>Equipment model</label><input id="recModel"></div><div class="field"><label>Serial number</label><input id="recSerial"></div><div class="field"><label>Asset tag</label><input id="recAsset"></div><div class="field"><label class="req">Location</label><select id="recLocation">${optionList(refs.locations)}</select></div><div class="field span-4"><button type="button" class="btn primary" id="addRecLine">Add delivery line</button></div></div><div id="receivingDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Submit for approval</button><button type="button" class="btn" id="clearRec">Clear draft</button></div></form></div></div></div>`;
   const syncItem = (i) => {
     $("#recUom").value = i?.unitOfMeasure || "";
-    const eq = i?.category === "EQUIPMENT";
-    $("#recQty").value = eq ? 1 : $("#recQty").value;
-    $("#recQty").disabled = eq;
-    $("#recBatch").disabled = eq;
-    $("#recExpiry").disabled = eq;
-    $("#recModel").disabled = !eq;
-    $("#recSerial").disabled = !eq;
-    $("#recAsset").disabled = !eq;
+
+    const isEquipment = i?.category === "EQUIPMENT";
+    const isMedicine = i?.category === "MEDICINE";
+
+    // Quantity
+    $("#recQty").value = isEquipment ? 1 : $("#recQty").value;
+
+    $("#recQty").disabled = isEquipment;
+
+    // Batch
+    $("#recBatch").disabled = isEquipment;
+
+    // ============================================
+    // EXPIRY DATE
+    // ============================================
+
+    const expiry = $("#recExpiry");
+    const expiryLabel = $("#recExpiryLabel");
+
+    expiry.disabled = isEquipment;
+
+    // Required only for medicines
+    expiry.required = isMedicine;
+
+    // Medicines cannot select a date before today
+    expiry.min = isMedicine ? today() : "";
+
+    // Show required indicator for medicines
+    if (expiryLabel) {
+      expiryLabel.classList.toggle("req", isMedicine);
+    }
+
+    // ============================================
+    // EQUIPMENT FIELDS
+    // ============================================
+
+    $("#recModel").disabled = !isEquipment;
+    $("#recSerial").disabled = !isEquipment;
+    $("#recAsset").disabled = !isEquipment;
   };
+
   bindReceivingCombo(items, syncItem);
   syncItem(null);
   renderReceivingDraft();
@@ -904,6 +936,14 @@ async function pageReceiving(root) {
 
     if (!selectedItem) {
       return toast("Select an item from the dropdown", "error");
+    }
+
+    const expiryDate = $("#recExpiry").value;
+
+    if (selectedItem.category === "MEDICINE") {
+      if (!expiryDate) {
+        return toast("Expiry date is required for medicines", "error");
+      }
     }
 
     // --------------------------------------------------
@@ -1471,7 +1511,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
   const eq = line.category === "EQUIPMENT",
     body = modal(
       `Edit item · ${line.itemName}`,
-      `<form id="returnedLineForm"><div class="form-grid"><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="rlQty" type="number" min="1" ${eq ? 'max="1"' : ""} value="${line.quantity}"><input value="${esc(line.unitOfMeasure)}" disabled></div></div><div class="field"><label>Brand</label><input id="rlBrand" value="${esc(line.brand || "")}"></div>${eq ? `<div class="field"><label>Model</label><input id="rlModel" value="${esc(line.model || "")}"></div><div class="field"><label class="req">Serial number</label><input id="rlSerial" value="${esc(line.serialNumber || "")}"></div><div class="field"><label class="req">Asset tag</label><input id="rlAsset" value="${esc(line.assetTag || "")}"></div>` : `<div class="field"><label>Batch number (optional)</label><input id="rlBatch" value="${esc(line.batchNumber || "")}"></div><div class="field"><label>Expiry date</label><input id="rlExpiry" type="date" value="${esc(line.expiryDate || "")}"></div>`}<div class="field"><label class="req">Location</label><select id="rlLocation">${optionList(refs.locations, "id", "name", line.locationId)}</select></div></div><div class="modal-actions"><button type="button" class="btn" id="rlCancel">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="returnedLineForm"><div class="form-grid"><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="rlQty" type="number" min="1" ${eq ? 'max="1"' : ""} value="${line.quantity}"><input value="${esc(line.unitOfMeasure)}" disabled></div></div><div class="field"><label>Brand</label><input id="rlBrand" value="${esc(line.brand || "")}"></div>${eq ? `<div class="field"><label>Model</label><input id="rlModel" value="${esc(line.model || "")}"></div><div class="field"><label class="req">Serial number</label><input id="rlSerial" value="${esc(line.serialNumber || "")}"></div><div class="field"><label class="req">Asset tag</label><input id="rlAsset" value="${esc(line.assetTag || "")}"></div>` : `<div class="field"><label>Batch number (optional)</label><input id="rlBatch" value="${esc(line.batchNumber || "")}"></div><div class="field"><label id="recExpiryLabel">Expiry date</label><input id="recExpiry" type="date" value="${esc(line.expiryDate || "")}"></div>`}<div class="field"><label class="req">Location</label><select id="rlLocation">${optionList(refs.locations, "id", "name", line.locationId)}</select></div></div><div class="modal-actions"><button type="button" class="btn" id="rlCancel">Cancel</button><button class="btn primary">Save item</button></div></form>`,
     );
   $("#rlCancel", body).onclick = closeModal;
   $("#returnedLineForm", body).onsubmit = async (e) => {
