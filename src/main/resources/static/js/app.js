@@ -759,7 +759,7 @@ function openItemForm(item, refs) {
   const isEdit = !!item,
     body = modal(
       isEdit ? "Edit item" : "Add new item",
-      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="0" max="500" value="${item?.reorderQuantity ?? 0}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
     );
   $("#cancelItem", body).onclick = closeModal;
   $("#itemUom", body).onchange = async (e) => {
@@ -795,6 +795,15 @@ function openItemForm(item, refs) {
       reorderLevel: Number($("#itemReorderLevel").value),
       reorderQuantity: Number($("#itemReorderQty").value),
     };
+
+    if (
+      !Number.isInteger(req.reorderQuantity) ||
+      req.reorderQuantity < 1 ||
+      req.reorderQuantity > 500
+    ) {
+      return toast("Reorder quantity must be between 1 and 500", "error");
+    }
+
     try {
       await api(isEdit ? `/api/items/${item.id}` : "/api/items", {
         method: isEdit ? "PUT" : "POST",
@@ -2512,6 +2521,17 @@ function openReorder(item, refs) {
   $("#rrCancel", body).onclick = closeModal;
   $("#reorderForm", body).onsubmit = async (e) => {
     e.preventDefault();
+
+    const reorderQuantity = Number($("#rrQty").value);
+
+    if (
+      !Number.isInteger(req.reorderQuantity) ||
+      req.reorderQuantity < 1 ||
+      req.reorderQuantity > 500
+    ) {
+      return toast("Reorder quantity must be between 1 and 500", "error");
+    }
+
     try {
       await api(`/api/items/${item.id}`, {
         method: "PUT",
