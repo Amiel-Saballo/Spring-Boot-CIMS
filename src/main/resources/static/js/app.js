@@ -2760,6 +2760,10 @@ function showReport(report) {
     report.transactionType === "ISSUANCE" &&
     report.itemCategory === "SUPPLY";
 
+  const isReceiving =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "RECEIVING";
+
   if (isMedicineIssuance) {
     content = tableMarkup({
       id: "reportMedicineIssuance",
@@ -2945,6 +2949,49 @@ function showReport(report) {
           label: "Remarks",
           key: "remarks",
           width: 250,
+        },
+      ],
+
+      rows,
+    });
+  } else if (isReceiving) {
+    content = tableMarkup({
+      id: "reportReceiving",
+
+      searchFields: ["dateReceived", "nurseOnDuty", "supplier", "itemReceived"],
+
+      columns: [
+        {
+          label: "Date Received",
+          key: "dateReceived",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateReceived),
+        },
+
+        {
+          label: "Received By",
+          key: "receivedBy",
+          width: 170,
+        },
+
+        {
+          label: "Supplier",
+          key: "receivedFrom",
+          width: 180,
+        },
+
+        {
+          label: "Item Received",
+          key: "itemReceived",
+          width: 200,
+        },
+
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
         },
       ],
 

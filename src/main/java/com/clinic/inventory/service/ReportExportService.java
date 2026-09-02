@@ -24,6 +24,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import com.clinic.inventory.dto.ReportDtos;
+import com.clinic.inventory.dto.ReportDtos.ReceivingHistoryRow;
 import com.clinic.inventory.dto.ReportDtos.SupplyIssuanceHistoryRow;
 import com.clinic.inventory.enums.ItemCategory;
 import com.clinic.inventory.enums.ReportType;
@@ -832,6 +833,10 @@ public class ReportExportService {
             return supplyIssuanceTable(report);
         }
 
+        if (isReceivingReport(report)) {
+            return receivingTable(report);
+        }
+
         List<List<Object>> rows = new ArrayList<>();
         rows.add(List.of("Date", "Transaction Type", "Reference", "User",
                 "Item", "Category", "Activity"));
@@ -883,6 +888,11 @@ public class ReportExportService {
         return report.reportType() == ReportType.TRANSACTION_HISTORY
                 && report.transactionType() == TransactionType.ISSUANCE
                 && report.itemCategory() == ItemCategory.SUPPLY;
+    }
+
+    private boolean isReceivingReport(ReportDtos.GeneratedReport report) {
+        return report.reportType() == ReportType.TRANSACTION_HISTORY
+                && report.transactionType() == TransactionType.RECEIVING;
     }
 
     @SuppressWarnings("unchecked")
@@ -940,6 +950,30 @@ public class ReportExportService {
             row.add(r.itemIssued());
             row.add(r.quantity());
             row.add(r.remarks());
+
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<List<Object>> receivingTable(
+            ReportDtos.GeneratedReport report) {
+        List<List<Object>> rows = new ArrayList<>();
+
+        rows.add(List.of("Date Received", "Item Received", "Quantity",
+                "Supplier", "Received By"));
+
+        for (ReceivingHistoryRow r : (List<ReportDtos.ReceivingHistoryRow>) report
+                .rows()) {
+            List<Object> row = new ArrayList<>();
+
+            row.add(r.dateReceived());
+            row.add(r.itemReceived());
+            row.add(r.quantity());
+            row.add(r.receivedFrom());
+            row.add(r.receivedBy());
 
             rows.add(row);
         }

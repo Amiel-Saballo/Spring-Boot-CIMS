@@ -23,6 +23,7 @@ import com.clinic.inventory.entity.IssuanceLine;
 import com.clinic.inventory.entity.IssuanceTransaction;
 import com.clinic.inventory.entity.Item;
 import com.clinic.inventory.entity.ReceivingLine;
+import com.clinic.inventory.entity.ReceivingTransaction;
 import com.clinic.inventory.entity.ReportRecord;
 import com.clinic.inventory.entity.UserAccount;
 import com.clinic.inventory.enums.BatchStatus;
@@ -98,6 +99,9 @@ public class ReportService {
                 && request.transactionType() == TransactionType.ISSUANCE
                 && request.itemCategory() == ItemCategory.SUPPLY) {
             rows = supplyIssuanceHistory(from, to);
+        } else if (type == ReportType.TRANSACTION_HISTORY
+                && request.transactionType() == TransactionType.RECEIVING) {
+            rows = receivingHistory(from, to, request.itemCategory());
         } else
             rows = switch (type) {
             case STOCK_BALANCE -> stockBalance(from, to);
@@ -287,6 +291,32 @@ public class ReportService {
                                 : t.getAffectedItem().getCategory(),
                         t.getDetail()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportDtos.ReceivingHistoryRow> receivingHistory(LocalDate from,
+            LocalDate to, ItemCategory itemCategory) {
+
+        List<ReceivingTransaction> transactions = receivingRepository
+                .findByStatusAndDateReceivedBetweenOrderByDateReceivedAsc(
+                        ReceivingStatus.APPROVED, from, to);
+
+        List<ReportDtos.ReceivingHistoryRow> rows = new ArrayList<>();
+
+        for (ReceivingTransaction transaction : transactions) {
+            for (ReceivingLine line : transaction.getLines()) {
+                if (itemCategory != null
+                        && line.getItem().getCategory() != itemCategory) {
+                    continue;
+                }
+
+                rows.add(new ReportDtos.ReceivingHistoryRow(
+                        transaction.getDateReceived(), line.getItem().getName(),
+                        line.getQuantity(), transaction.getSupplier().getName(),
+                        transaction.getReceivedBy().getFullName()));
+            }
+        }
+        return rows;
     }
 
     @Transactional(readOnly = true)

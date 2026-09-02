@@ -48,6 +48,11 @@ public final class ReportDtos {
             String remarks) {
     }
 
+    public record ReceivingHistoryRow(LocalDate dateReceived,
+            String itemReceived, int quantity, String receivedFrom,
+            String receivedBy) {
+    }
+
     public record EquipmentReportRow(String assetTag, String itemName,
             String serialNumber, String brand, String model, String location,
             List<Integer> monthlyPresence, String remarks) {
