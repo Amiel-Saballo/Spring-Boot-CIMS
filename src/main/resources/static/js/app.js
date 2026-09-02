@@ -900,9 +900,6 @@ async function pageReceiving(root) {
 
     expiry.disabled = isEquipment;
 
-    // Required only for medicines
-    expiry.required = isMedicine;
-
     // Medicines cannot select a date before today
     expiry.min = isMedicine ? today() : "";
 
@@ -1635,7 +1632,7 @@ async function pageIssuance(root) {
   const items = (
     await fetchAll("/api/items", { status: "ACTIVE", sort: "code,asc" })
   ).filter((i) => i.category !== "EQUIPMENT");
-  root.innerHTML = `<div class="card"><div class="card-head"><h2>Record Medicine / Supply Issuance</h2><span class="badge green">FEFO</span></div><div class="card-body"><form id="issuanceForm"><div class="form-grid"><div class="field"><label class="req">Employee number</label><input id="issEmployeeNo" required></div><div class="field"><label class="req">Employee name</label><input id="issEmployeeName" required></div><div class="field"><label>Department</label><input id="issDepartment"></div><div class="field"><label>Supervisor</label><input id="issSupervisor"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="issComplaint" required></div><div class="field"><label class="req">Disposition</label><select id="issDisposition"><option>Returned to work</option><option>Sent home</option><option>Referred to hospital</option></select></div><div class="field"><label class="req">Date</label><input id="issDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="issRemarks" maxlength="500"></textarea></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label><select id="issItem">${items.map((i) => `<option value="${i.id}">${esc(i.code)} · ${esc(i.name)}</option>`).join("")}</select></div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="issQty" type="number" min="1" value="1"><input id="issUom" disabled></div></div><div class="field"><button type="button" class="btn primary" id="addIssLine" style="margin-top:20px">Add item</button></div></div><div id="issueDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Record issuance</button><button type="button" class="btn" id="clearIss">Clear draft</button></div></form></div></div>`;
+  root.innerHTML = `<div class="card"><div class="card-head"><h2>Record Medicine / Supply Issuance</h2><span class="badge green">FEFO</span></div><div class="card-body"><form id="issuanceForm"><div class="form-grid"><div class="field"><label class="req">Employee number</label><input id="issEmployeeNo" required></div><div class="field"><label class="req">Employee name</label><input id="issEmployeeName" required></div><div class="field"><label>Department</label><input id="issDepartment"></div><div class="field"><label>Supervisor</label><input id="issSupervisor"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="issComplaint" required></div><div class="field"><label class="req">Disposition</label><select id="issDisposition"><option>Returned to work</option><option>Sent home</option><option>Referred to hospital</option></select></div><div class="field"><label class="req">Date</label><input id="issDate" type="date" value="${today()}" readonly required></div><div class="field span-4"><label>Remarks</label><textarea id="issRemarks" maxlength="500"></textarea></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label><select id="issItem">${items.map((i) => `<option value="${i.id}">${esc(i.code)} · ${esc(i.name)}</option>`).join("")}</select></div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="issQty" type="number" min="1" value="1"><input id="issUom" disabled></div></div><div class="field"><button type="button" class="btn primary" id="addIssLine" style="margin-top:20px">Add item</button></div></div><div id="issueDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Record issuance</button><button type="button" class="btn" id="clearIss">Clear draft</button></div></form></div></div>`;
   const sync = () => {
     $("#issUom").value =
       items.find((i) => i.id == $("#issItem").value)?.unitOfMeasure || "";
@@ -2419,7 +2416,48 @@ function openRoleForm(role, permissions) {
     }
   };
 }
-
+function addReference(path, label) {
+  const body = modal(
+    `Add ${label}`,
+    `<form id="refForm"><div class="field"><label class="req">${esc(label)}</label><input id="refName" required></div><div class="modal-actions"><button type="button" class="btn" id="refCancel">Cancel</button><button class="btn primary">Add</button></div></form>`,
+  );
+  $("#refCancel", body).onclick = closeModal;
+  $("#refForm", body).onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(path, {
+        method: "POST",
+        body: JSON.stringify({ name: $("#refName").value.trim() }),
+      });
+      closeModal();
+      toast(`${label} added`);
+      await renderPage();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+}
+function editReference(path, label, item, onSaved) {
+  const body = modal(
+    `Edit ${label}`,
+    `<form id="refEditForm"><div class="field"><label class="req">${esc(label)}</label><input id="refEditName" value="${esc(item.name)}" required></div><div class="modal-actions"><button type="button" class="btn" id="refEditCancel">Cancel</button><button class="btn primary">Save</button></div></form>`,
+  );
+  $("#refEditCancel", body).onclick = closeModal;
+  $("#refEditForm", body).onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api(`${path}/${item.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name: $("#refEditName").value.trim() }),
+      });
+      closeModal();
+      toast(`${label} updated`);
+      await onSaved();
+    } catch (err) {
+      toast(err.message, "error");
+    }
+  };
+}
 async function pageSettings(root) {
   const refs = await loadReferences(),
     canSettings = hasPerm("SETTINGS"),
@@ -2429,7 +2467,7 @@ async function pageSettings(root) {
   if (canSettings) near = await api("/api/settings/near-expiry-days");
   if (canSettings && hasPerm("ITEMS"))
     items = await fetchAll("/api/items", { sort: "code,asc" });
-  root.innerHTML = `<div class="stack">${canSettings ? `<div class="card"><div class="card-head"><h2>Global Medicine Near-Expiry Setting</h2></div><div class="card-body"><form id="nearForm"><div class="form-grid"><div class="field"><label class="req">Near-expiry days</label><input id="nearDays" type="number" min="0" max="3650" value="${near.days}"></div><div class="field span-3"><div class="notice">This single value applies to every medicine batch.</div></div><div class="field span-4"><button class="btn primary">Save setting</button></div></div></form></div></div>` : ""}<div class="grid ${canSettings ? "cols-2" : ""}">${canSettings ? `<div class="card"><div class="card-head"><h2>Units of Measurement</h2><button class="btn primary small" id="addUom">Add UoM</button></div>${tableMarkup({ id: "uoms", searchFields: ["name"], columns: [{ label: "Unit of Measurement", key: "name", width: 300 }], rows: refs.uoms })}</div>` : ""}${canLocations ? `<div class="card"><div class="card-head"><h2>Locations</h2><button class="btn primary small" id="addLocation">Add Location</button></div>${tableMarkup({ id: "locations", searchFields: ["name"], columns: [{ label: "Location", key: "name", width: 300 }], rows: refs.locations })}</div>` : ""}</div>${
+  root.innerHTML = `<div class="stack">${canSettings ? `<div class="card"><div class="card-head"><h2>Global Medicine Near-Expiry Setting</h2></div><div class="card-body"><form id="nearForm"><div class="form-grid"><div class="field"><label class="req">Near-expiry days</label><input id="nearDays" type="number" min="0" max="3650" value="${near.days}"></div><div class="field span-3"><div class="notice">This single value applies to every medicine batch.</div></div><div class="field span-4"><button class="btn primary">Save setting</button></div></div></form></div></div>` : ""}<div class="grid ${canSettings ? "cols-2" : ""}">${canSettings ? `<div class="card"><div class="card-head"><h2>Units of Measurement</h2><button class="btn primary small" id="addUom">Add UoM</button></div>${tableMarkup({ id: "uoms", searchFields: ["name"], columns: [{ label: "Unit of Measurement", key: "name", width: 300 }, { label: "", sortable: false, width: 90, render: (r) => `<button class="btn small edit-uom" data-id="${r.id}">Edit</button>` }], rows: refs.uoms })}</div>` : ""}${canLocations ? `<div class="card"><div class="card-head"><h2>Locations</h2><button class="btn primary small" id="addLocation">Add Location</button></div>${tableMarkup({ id: "locations", searchFields: ["name"], columns: [{ label: "Location", key: "name", width: 300 }, { label: "", sortable: false, width: 90, render: (r) => `<button class="btn small edit-location" data-id="${r.id}">Edit</button>` }], rows: refs.locations })}</div>` : ""}</div>${
     canSettings && hasPerm("ITEMS")
       ? `<div class="card"><div class="card-head"><h2>Item Reorder Settings</h2></div>${tableMarkup(
           {
@@ -2483,6 +2521,26 @@ async function pageSettings(root) {
   if (canLocations && $("#addLocation"))
     $("#addLocation").onclick = () =>
       addReference("/api/settings/locations", "Location");
+  $$(".edit-uom").forEach(
+    (b) =>
+      (b.onclick = () =>
+        editReference(
+          "/api/settings/units-of-measure",
+          "Unit of Measurement",
+          refs.uoms.find((u) => u.id == b.dataset.id),
+          renderPage,
+        )),
+  );
+  $$(".edit-location").forEach(
+    (b) =>
+      (b.onclick = () =>
+        editReference(
+          "/api/settings/locations",
+          "Location",
+          refs.locations.find((l) => l.id == b.dataset.id),
+          renderPage,
+        )),
+  );
   $$(".edit-reorder").forEach(
     (b) =>
       (b.onclick = () =>
@@ -2491,27 +2549,6 @@ async function pageSettings(root) {
           refs,
         )),
   );
-}
-function addReference(path, label) {
-  const body = modal(
-    `Add ${label}`,
-    `<form id="refForm"><div class="field"><label class="req">${esc(label)}</label><input id="refName" required></div><div class="modal-actions"><button type="button" class="btn" id="refCancel">Cancel</button><button class="btn primary">Add</button></div></form>`,
-  );
-  $("#refCancel", body).onclick = closeModal;
-  $("#refForm", body).onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api(path, {
-        method: "POST",
-        body: JSON.stringify({ name: $("#refName").value.trim() }),
-      });
-      closeModal();
-      toast(`${label} added`);
-      await renderPage();
-    } catch (err) {
-      toast(err.message, "error");
-    }
-  };
 }
 function openReorder(item, refs) {
   const body = modal(
