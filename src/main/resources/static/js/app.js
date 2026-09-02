@@ -2525,9 +2525,9 @@ function openReorder(item, refs) {
     const reorderQuantity = Number($("#rrQty").value);
 
     if (
-      !Number.isInteger(req.reorderQuantity) ||
-      req.reorderQuantity < 1 ||
-      req.reorderQuantity > 500
+      !Number.isInteger(reorderQuantity) ||
+      reorderQuantity < 1 ||
+      reorderQuantity > 500
     ) {
       return toast("Reorder quantity must be between 1 and 500", "error");
     }
