@@ -759,7 +759,7 @@ function openItemForm(item, refs) {
   const isEdit = !!item,
     body = modal(
       isEdit ? "Edit item" : "Add new item",
-      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name / description</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="0" max="500" value="${item?.reorderQuantity ?? 0}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
     );
   $("#cancelItem", body).onclick = closeModal;
   $("#itemUom", body).onchange = async (e) => {
@@ -795,6 +795,15 @@ function openItemForm(item, refs) {
       reorderLevel: Number($("#itemReorderLevel").value),
       reorderQuantity: Number($("#itemReorderQty").value),
     };
+
+    if (
+      !Number.isInteger(req.reorderQuantity) ||
+      req.reorderQuantity < 1 ||
+      req.reorderQuantity > 500
+    ) {
+      return toast("Reorder quantity must be between 1 and 500", "error");
+    }
+
     try {
       await api(isEdit ? `/api/items/${item.id}` : "/api/items", {
         method: isEdit ? "PUT" : "POST",
@@ -856,13 +865,9 @@ function bindReceivingCombo(items, onChange) {
     hidden.value = "";
     draw();
   };
-  document.addEventListener(
-    "mousedown",
-    (e) => {
-      if (!$("#recCombo")?.contains(e.target)) menu.classList.remove("open");
-    },
-    { once: true },
-  );
+  document.addEventListener("mousedown", (e) => {
+    if (!$("#recCombo")?.contains(e.target)) menu.classList.remove("open");
+  });
 }
 
 async function pageReceiving(root) {
@@ -871,18 +876,50 @@ async function pageReceiving(root) {
     fetchAll("/api/items", { status: "ACTIVE", sort: "code,asc" }),
     loadReferences(),
   ]);
-  root.innerHTML = `<div class="stack"><div class="card"><div class="card-head"><h2>Encode Receiving Transaction</h2><span>${badge("PENDING")}</span></div><div class="card-body"><form id="receivingForm"><div class="form-grid"><div class="field span-2"><label class="req">Supplier</label><div class="actions"><select id="recSupplier" style="flex:1">${optionList(suppliers)}</select><button type="button" class="btn" id="addSupplierInline">+ Add Supplier</button></div></div><div class="field"><label class="req">Delivery reference</label><input id="recRef" required></div><div class="field"><label class="req">Date received</label><input id="recDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="recRemarks" maxlength="150" placeholder="Enter receiving remarks (maximum 150 characters)"></textarea><div class="help">Maximum 150 characters</div></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label>${receivingCombo(items)}</div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="recQty" type="number" min="1" value="1"><input id="recUom" disabled placeholder="Unit"></div></div><div class="field"><label>Brand</label><input id="recBrand"></div><div class="field"><label>Batch number <span class="muted">(optional)</span></label><input id="recBatch"></div><div class="field"><label>Expiry date</label><input id="recExpiry" type="date"></div><div class="field"><label>Equipment model</label><input id="recModel"></div><div class="field"><label>Serial number</label><input id="recSerial"></div><div class="field"><label>Asset tag</label><input id="recAsset"></div><div class="field"><label class="req">Location</label><select id="recLocation">${optionList(refs.locations)}</select></div><div class="field span-4"><button type="button" class="btn primary" id="addRecLine">Add delivery line</button></div></div><div id="receivingDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Submit for approval</button><button type="button" class="btn" id="clearRec">Clear draft</button></div></form></div></div></div>`;
+  root.innerHTML = `<div class="stack"><div class="card"><div class="card-head"><h2>Encode Receiving Transaction</h2><span>${badge("PENDING")}</span></div><div class="card-body"><form id="receivingForm"><div class="form-grid"><div class="field span-2"><label class="req">Supplier</label><div class="actions"><select id="recSupplier" style="flex:1">${optionList(suppliers)}</select><button type="button" class="btn" id="addSupplierInline">+ Add Supplier</button></div></div><div class="field"><label class="req">Delivery reference</label><input id="recRef" required></div><div class="field"><label class="req">Date received</label><input id="recDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="recRemarks" maxlength="150" placeholder="Enter receiving remarks (maximum 150 characters)"></textarea><div class="help">Maximum 150 characters</div></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label>${receivingCombo(items)}</div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="recQty" type="number" min="1" max="500" value="1"><input id="recUom" disabled placeholder="Unit"></div></div><div class="field"><label>Brand</label><input id="recBrand"></div><div class="field"><label>Batch number <span class="muted">(optional)</span></label><input id="recBatch"></div><div class="field"><label>Expiry date</label><input id="recExpiry" type="date"></div><div class="field"><label>Equipment model</label><input id="recModel"></div><div class="field"><label>Serial number</label><input id="recSerial"></div><div class="field"><label>Asset tag</label><input id="recAsset"></div><div class="field"><label class="req">Location</label><select id="recLocation">${optionList(refs.locations)}</select></div><div class="field span-4"><button type="button" class="btn primary" id="addRecLine">Add delivery line</button></div></div><div id="receivingDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Submit for approval</button><button type="button" class="btn" id="clearRec">Clear draft</button></div></form></div></div></div>`;
   const syncItem = (i) => {
     $("#recUom").value = i?.unitOfMeasure || "";
-    const eq = i?.category === "EQUIPMENT";
-    $("#recQty").value = eq ? 1 : $("#recQty").value;
-    $("#recQty").disabled = eq;
-    $("#recBatch").disabled = eq;
-    $("#recExpiry").disabled = eq;
-    $("#recModel").disabled = !eq;
-    $("#recSerial").disabled = !eq;
-    $("#recAsset").disabled = !eq;
+
+    const isEquipment = i?.category === "EQUIPMENT";
+    const isMedicine = i?.category === "MEDICINE";
+
+    // Quantity
+    $("#recQty").value = isEquipment ? 1 : $("#recQty").value;
+
+    $("#recQty").disabled = isEquipment;
+
+    // Batch
+    $("#recBatch").disabled = isEquipment;
+
+    // ============================================
+    // EXPIRY DATE
+    // ============================================
+
+    const expiry = $("#recExpiry");
+    const expiryLabel = $("#recExpiryLabel");
+
+    expiry.disabled = isEquipment;
+
+    // Required only for medicines
+    expiry.required = isMedicine;
+
+    // Medicines cannot select a date before today
+    expiry.min = isMedicine ? today() : "";
+
+    // Show required indicator for medicines
+    if (expiryLabel) {
+      expiryLabel.classList.toggle("req", isMedicine);
+    }
+
+    // ============================================
+    // EQUIPMENT FIELDS
+    // ============================================
+
+    $("#recModel").disabled = !isEquipment;
+    $("#recSerial").disabled = !isEquipment;
+    $("#recAsset").disabled = !isEquipment;
   };
+
   bindReceivingCombo(items, syncItem);
   syncItem(null);
   renderReceivingDraft();
@@ -896,57 +933,133 @@ async function pageReceiving(root) {
       $("#recSupplier").value = created.id;
     });
   $("#addRecLine").onclick = () => {
-    const item = items.find((i) => i.id == $("#recItemId").value);
-    if (!item) return toast("Select an item from the dropdown", "error");
-    const qty = Number($("#recQty").value);
-    if (!Number.isInteger(qty) || qty < 1)
+    // --------------------------------------------------
+    // 1. Get selected item FIRST
+    // --------------------------------------------------
+
+    const itemId = $("#recItemId").value;
+
+    const selectedItem = items.find(
+      (item) => String(item.id) === String(itemId),
+    );
+
+    if (!selectedItem) {
+      return toast("Select an item from the dropdown", "error");
+    }
+
+    const expiryDate = $("#recExpiry").value;
+
+    if (selectedItem.category === "MEDICINE") {
+      if (!expiryDate) {
+        return toast("Expiry date is required for medicines", "error");
+      }
+    }
+
+    // --------------------------------------------------
+    // 2. Get quantity
+    // --------------------------------------------------
+
+    const quantity = Number($("#recQty").value);
+
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
       return toast("Enter a valid quantity", "error");
+    }
+
+    // --------------------------------------------------
+    // 3. Get location
+    // --------------------------------------------------
+
+    const locationId = Number($("#recLocation").value);
+
+    if (!locationId) {
+      return toast("Select a location", "error");
+    }
+
+    const selectedLocation = refs.locations.find(
+      (location) => location.id == locationId,
+    );
+
+    // --------------------------------------------------
+    // 4. COPY all form values into a new object
+    // --------------------------------------------------
+
     const line = {
-      itemId: item.id,
-      itemCode: item.code,
-      itemName: item.name,
-      category: item.category,
-      unitOfMeasure: item.unitOfMeasure,
-      quantity: qty,
+      itemId: selectedItem.id,
+
+      itemCode: selectedItem.code,
+
+      itemName: selectedItem.name,
+
+      category: selectedItem.category,
+
+      unitOfMeasure: selectedItem.unitOfMeasure,
+
+      quantity: quantity,
+
       brand: $("#recBrand").value.trim(),
+
       batchNumber:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? null
           : $("#recBatch").value.trim() || null,
+
       expiryDate:
-        item.category === "EQUIPMENT" ? null : $("#recExpiry").value || null,
+        selectedItem.category === "EQUIPMENT"
+          ? null
+          : $("#recExpiry").value || null,
+
       model:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recModel").value.trim() || null
           : null,
+
       serialNumber:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recSerial").value.trim() || null
           : null,
+
       assetTag:
-        item.category === "EQUIPMENT"
+        selectedItem.category === "EQUIPMENT"
           ? $("#recAsset").value.trim() || null
           : null,
-      locationId: Number($("#recLocation").value),
-      location: refs.locations.find((x) => x.id == $("#recLocation").value)
-        ?.name,
+
+      locationId: locationId,
+
+      location: selectedLocation?.name || "",
     };
-    if (item.category === "EQUIPMENT" && (!line.serialNumber || !line.assetTag))
+
+    // --------------------------------------------------
+    // 5. Equipment validation
+    // --------------------------------------------------
+
+    if (
+      selectedItem.category === "EQUIPMENT" &&
+      (!line.serialNumber || !line.assetTag)
+    ) {
       return toast(
         "Serial number and asset tag are required for equipment",
         "error",
       );
+    }
+
+    // --------------------------------------------------
+    // 6. IMPORTANT: ADD THE LINE FIRST
+    // --------------------------------------------------
+
     app.draftReceiving.push(line);
-    [
-      "#recBrand",
-      "#recBatch",
-      "#recExpiry",
-      "#recModel",
-      "#recSerial",
-      "#recAsset",
-    ].forEach((s) => ($(s).value = ""));
-    if (!$("#recQty").disabled) $("#recQty").value = 1;
+
+    // --------------------------------------------------
+    // 7. IMPORTANT: RENDER IT BEFORE CLEARING
+    // --------------------------------------------------
+
     renderReceivingDraft();
+
+    // --------------------------------------------------
+    // 8. NOW clear the item-entry form
+    // --------------------------------------------------
+
+    clearReceivingItemForm();
+
     toast("Delivery line added");
   };
   $("#clearRec").onclick = () => {
@@ -1407,7 +1520,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
   const eq = line.category === "EQUIPMENT",
     body = modal(
       `Edit item · ${line.itemName}`,
-      `<form id="returnedLineForm"><div class="form-grid"><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="rlQty" type="number" min="1" ${eq ? 'max="1"' : ""} value="${line.quantity}"><input value="${esc(line.unitOfMeasure)}" disabled></div></div><div class="field"><label>Brand</label><input id="rlBrand" value="${esc(line.brand || "")}"></div>${eq ? `<div class="field"><label>Model</label><input id="rlModel" value="${esc(line.model || "")}"></div><div class="field"><label class="req">Serial number</label><input id="rlSerial" value="${esc(line.serialNumber || "")}"></div><div class="field"><label class="req">Asset tag</label><input id="rlAsset" value="${esc(line.assetTag || "")}"></div>` : `<div class="field"><label>Batch number (optional)</label><input id="rlBatch" value="${esc(line.batchNumber || "")}"></div><div class="field"><label>Expiry date</label><input id="rlExpiry" type="date" value="${esc(line.expiryDate || "")}"></div>`}<div class="field"><label class="req">Location</label><select id="rlLocation">${optionList(refs.locations, "id", "name", line.locationId)}</select></div></div><div class="modal-actions"><button type="button" class="btn" id="rlCancel">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="returnedLineForm"><div class="form-grid"><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="rlQty" type="number" min="1" ${eq ? 'max="1"' : ""} value="${line.quantity}"><input value="${esc(line.unitOfMeasure)}" disabled></div></div><div class="field"><label>Brand</label><input id="rlBrand" value="${esc(line.brand || "")}"></div>${eq ? `<div class="field"><label>Model</label><input id="rlModel" value="${esc(line.model || "")}"></div><div class="field"><label class="req">Serial number</label><input id="rlSerial" value="${esc(line.serialNumber || "")}"></div><div class="field"><label class="req">Asset tag</label><input id="rlAsset" value="${esc(line.assetTag || "")}"></div>` : `<div class="field"><label>Batch number (optional)</label><input id="rlBatch" value="${esc(line.batchNumber || "")}"></div><div class="field"><label id="recExpiryLabel">Expiry date</label><input id="recExpiry" type="date" value="${esc(line.expiryDate || "")}"></div>`}<div class="field"><label class="req">Location</label><select id="rlLocation">${optionList(refs.locations, "id", "name", line.locationId)}</select></div></div><div class="modal-actions"><button type="button" class="btn" id="rlCancel">Cancel</button><button class="btn primary">Save item</button></div></form>`,
     );
   $("#rlCancel", body).onclick = closeModal;
   $("#returnedLineForm", body).onsubmit = async (e) => {
@@ -2403,11 +2516,22 @@ function addReference(path, label) {
 function openReorder(item, refs) {
   const body = modal(
     `Edit reorder settings · ${item.name}`,
-    `<form id="reorderForm"><div class="form-grid"><div class="field"><label class="req">Reorder Level</label><input id="rrLevel" type="number" min="0" max="100" value="${item.reorderLevel}"></div><div class="field"><label class="req">Reorder Quantity</label><input id="rrQty" type="number" min="0" max="500" value="${item.reorderQuantity}"></div></div><div class="modal-actions"><button type="button" class="btn" id="rrCancel">Cancel</button><button class="btn primary">Save</button></div></form>`,
+    `<form id="reorderForm"><div class="form-grid"><div class="field"><label class="req">Reorder Level</label><input id="rrLevel" type="number" min="0" max="100" value="${item.reorderLevel}"></div><div class="field"><label class="req">Reorder Quantity</label><input id="rrQty" type="number" min="1" max="500" value="${item.reorderQuantity}"></div></div><div class="modal-actions"><button type="button" class="btn" id="rrCancel">Cancel</button><button class="btn primary">Save</button></div></form>`,
   );
   $("#rrCancel", body).onclick = closeModal;
   $("#reorderForm", body).onsubmit = async (e) => {
     e.preventDefault();
+
+    const reorderQuantity = Number($("#rrQty").value);
+
+    if (
+      !Number.isInteger(req.reorderQuantity) ||
+      req.reorderQuantity < 1 ||
+      req.reorderQuantity > 500
+    ) {
+      return toast("Reorder quantity must be between 1 and 500", "error");
+    }
+
     try {
       await api(`/api/items/${item.id}`, {
         method: "PUT",
@@ -2598,6 +2722,30 @@ function openGenerateReport(type, refs) {
     }
   };
 }
+
+function clearReceivingItemForm() {
+  // Clear selected item
+  $("#recItemInput").value = "";
+  $("#recItemId").value = "";
+
+  // Reset quantity and UOM
+  $("#recQty").value = 1;
+  $("#recUom").value = "";
+
+  // Clear medicine/supply fields
+  $("#recBrand").value = "";
+  $("#recBatch").value = "";
+  $("#recExpiry").value = "";
+
+  // Clear equipment fields
+  $("#recModel").value = "";
+  $("#recSerial").value = "";
+  $("#recAsset").value = "";
+
+  // Return fields to their default enabled/disabled state
+  syncItem(null);
+}
+
 function showReport(report) {
   const rows = report.rows || [];
   let content = "";
