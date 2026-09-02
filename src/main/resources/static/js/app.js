@@ -2562,9 +2562,9 @@ function openReorder(item, refs) {
     const reorderQuantity = Number($("#rrQty").value);
 
     if (
-      !Number.isInteger(req.reorderQuantity) ||
-      req.reorderQuantity < 1 ||
-      req.reorderQuantity > 500
+      !Number.isInteger(reorderQuantity) ||
+      reorderQuantity < 1 ||
+      reorderQuantity > 500
     ) {
       return toast("Reorder quantity must be between 1 and 500", "error");
     }
@@ -2786,7 +2786,260 @@ function clearReceivingItemForm() {
 function showReport(report) {
   const rows = report.rows || [];
   let content = "";
-  if (report.reportType === "TRANSACTION_HISTORY")
+
+  const isMedicineIssuance =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "ISSUANCE" &&
+    report.itemCategory === "MEDICINE";
+
+  const isSupplyIssuance =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "ISSUANCE" &&
+    report.itemCategory === "SUPPLY";
+
+  const isReceiving =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "RECEIVING";
+
+  if (isMedicineIssuance) {
+    content = tableMarkup({
+      id: "reportMedicineIssuance",
+
+      searchFields: [
+        "nurseOnDuty",
+        "employeeNumber",
+        "employeeName",
+        "department",
+        "supervisor",
+        "chiefComplaint",
+        "itemIssued",
+        "batchNumber",
+        "remarks",
+      ],
+
+      columns: [
+        {
+          label: "Date",
+          key: "dateIssued",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateIssued),
+        },
+
+        {
+          label: "Nurse-on-Duty",
+          key: "nurseOnDuty",
+          width: 170,
+        },
+
+        {
+          label: "Employee No.",
+          key: "employeeNumber",
+          width: 130,
+        },
+
+        {
+          label: "Employee Name",
+          key: "employeeName",
+          width: 180,
+        },
+
+        {
+          label: "Department",
+          key: "department",
+          width: 140,
+        },
+
+        {
+          label: "Supervisor",
+          key: "supervisor",
+          width: 160,
+        },
+
+        {
+          label: "Chief Complaint",
+          key: "chiefComplaint",
+          width: 200,
+        },
+
+        {
+          label: "Disposition",
+          key: "disposition",
+          width: 160,
+        },
+
+        {
+          label: "Item Issued",
+          key: "itemIssued",
+          width: 200,
+        },
+
+        {
+          label: "Batch No.",
+          key: "batchNumber",
+          width: 140,
+        },
+
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
+        },
+
+        {
+          label: "Unit",
+          key: "unitOfMeasure",
+          width: 100,
+        },
+
+        {
+          label: "Remarks",
+          key: "remarks",
+          width: 250,
+        },
+      ],
+
+      rows,
+    });
+  } else if (isSupplyIssuance) {
+    content = tableMarkup({
+      id: "reportSupplyIssuance",
+
+      searchFields: [
+        "nurseOnDuty",
+        "employeeNumber",
+        "employeeName",
+        "department",
+        "supervisor",
+        "chiefComplaint",
+        "itemIssued",
+        "batchNumber",
+        "remarks",
+      ],
+
+      columns: [
+        {
+          label: "Date",
+          key: "dateIssued",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateIssued),
+        },
+        {
+          label: "Nurse-on-Duty",
+          key: "nurseOnDuty",
+          width: 170,
+        },
+        {
+          label: "Employee No.",
+          key: "employeeNumber",
+          width: 130,
+        },
+        {
+          label: "Employee Name",
+          key: "employeeName",
+          width: 180,
+        },
+        {
+          label: "Department",
+          key: "department",
+          width: 140,
+        },
+        {
+          label: "Supervisor",
+          key: "supervisor",
+          width: 160,
+        },
+        {
+          label: "Chief Complaint",
+          key: "chiefComplaint",
+          width: 200,
+        },
+        {
+          label: "Disposition",
+          key: "disposition",
+          width: 160,
+        },
+        {
+          label: "Item Issued",
+          key: "itemIssued",
+          width: 200,
+        },
+        {
+          label: "Batch No.",
+          key: "batchNumber",
+          width: 140,
+        },
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
+        },
+        {
+          label: "Unit",
+          key: "unitOfMeasure",
+          width: 100,
+        },
+        {
+          label: "Remarks",
+          key: "remarks",
+          width: 250,
+        },
+      ],
+
+      rows,
+    });
+  } else if (isReceiving) {
+    content = tableMarkup({
+      id: "reportReceiving",
+
+      searchFields: ["dateReceived", "nurseOnDuty", "supplier", "itemReceived"],
+
+      columns: [
+        {
+          label: "Date Received",
+          key: "dateReceived",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateReceived),
+        },
+
+        {
+          label: "Received By",
+          key: "receivedBy",
+          width: 170,
+        },
+
+        {
+          label: "Supplier",
+          key: "receivedFrom",
+          width: 180,
+        },
+
+        {
+          label: "Item Received",
+          key: "itemReceived",
+          width: 200,
+        },
+
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
+        },
+      ],
+
+      rows,
+    });
+  }
+
+  // ============================================
+  // ALL OTHER TRANSACTION HISTORY REPORTS
+  // ============================================
+  else if (report.reportType === "TRANSACTION_HISTORY")
     content = tableMarkup({
       id: "reportTx",
       searchFields: ["referenceNumber", "user", "itemName", "detail"],
@@ -2849,6 +3102,9 @@ function showReport(report) {
                   reportType: report.reportType,
                   from: report.from,
                   to: report.to,
+
+                  transactionType: report.transactionType || null,
+                  itemCategory: report.itemCategory || null,
                 }),
               },
               name,
