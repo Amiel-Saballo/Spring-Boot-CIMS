@@ -2749,7 +2749,118 @@ function clearReceivingItemForm() {
 function showReport(report) {
   const rows = report.rows || [];
   let content = "";
-  if (report.reportType === "TRANSACTION_HISTORY")
+
+  const isMedicineIssuance =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "ISSUANCE" &&
+    report.itemCategory === "MEDICINE";
+
+  if (isMedicineIssuance) {
+    content = tableMarkup({
+      id: "reportMedicineIssuance",
+
+      searchFields: [
+        "nurseOnDuty",
+        "employeeNumber",
+        "employeeName",
+        "department",
+        "supervisor",
+        "chiefComplaint",
+        "itemIssued",
+        "batchNumber",
+        "remarks",
+      ],
+
+      columns: [
+        {
+          label: "Date",
+          key: "dateIssued",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateIssued),
+        },
+
+        {
+          label: "Nurse-on-Duty",
+          key: "nurseOnDuty",
+          width: 170,
+        },
+
+        {
+          label: "Employee No.",
+          key: "employeeNumber",
+          width: 130,
+        },
+
+        {
+          label: "Employee Name",
+          key: "employeeName",
+          width: 180,
+        },
+
+        {
+          label: "Department",
+          key: "department",
+          width: 140,
+        },
+
+        {
+          label: "Supervisor",
+          key: "supervisor",
+          width: 160,
+        },
+
+        {
+          label: "Chief Complaint",
+          key: "chiefComplaint",
+          width: 200,
+        },
+
+        {
+          label: "Disposition",
+          key: "disposition",
+          width: 160,
+        },
+
+        {
+          label: "Item Issued",
+          key: "itemIssued",
+          width: 200,
+        },
+
+        {
+          label: "Batch No.",
+          key: "batchNumber",
+          width: 140,
+        },
+
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
+        },
+
+        {
+          label: "Unit",
+          key: "unitOfMeasure",
+          width: 100,
+        },
+
+        {
+          label: "Remarks",
+          key: "remarks",
+          width: 250,
+        },
+      ],
+
+      rows,
+    });
+
+    // ============================================
+    // ALL OTHER TRANSACTION HISTORY REPORTS
+    // ============================================
+  } else if (report.reportType === "TRANSACTION_HISTORY")
     content = tableMarkup({
       id: "reportTx",
       searchFields: ["referenceNumber", "user", "itemName", "detail"],
@@ -2812,6 +2923,9 @@ function showReport(report) {
                   reportType: report.reportType,
                   from: report.from,
                   to: report.to,
+
+                  transactionType: report.transactionType || null,
+                  itemCategory: report.itemCategory || null,
                 }),
               },
               name,
