@@ -94,6 +94,10 @@ public class ReportService {
                 && request.transactionType() == TransactionType.ISSUANCE
                 && request.itemCategory() == ItemCategory.MEDICINE) {
             rows = medicineIssuanceHistory(from, to);
+        } else if (type == ReportType.TRANSACTION_HISTORY
+                && request.transactionType() == TransactionType.ISSUANCE
+                && request.itemCategory() == ItemCategory.SUPPLY) {
+            rows = supplyIssuanceHistory(from, to);
         } else
             rows = switch (type) {
             case STOCK_BALANCE -> stockBalance(from, to);
@@ -134,6 +138,34 @@ public class ReportService {
             }
         }
 
+        return rows;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReportDtos.SupplyIssuanceHistoryRow> supplyIssuanceHistory(
+            LocalDate from, LocalDate to) {
+        List<IssuanceTransaction> transactions = issuanceRepository
+                .findByDateIssuedBetweenOrderByDateIssuedAsc(from, to);
+
+        List<ReportDtos.SupplyIssuanceHistoryRow> rows = new ArrayList<>();
+
+        for (IssuanceTransaction transaction : transactions) {
+            for (IssuanceLine line : transaction.getLines()) {
+                if (line.getItem().getCategory() != ItemCategory.SUPPLY) {
+                    continue;
+                }
+                rows.add(new ReportDtos.SupplyIssuanceHistoryRow(
+                        transaction.getDateIssued(),
+                        transaction.getRecordedBy().getFullName(),
+                        transaction.getEmployeeNumber(),
+                        transaction.getEmployeeName(),
+                        transaction.getDepartment(),
+                        transaction.getSupervisor(),
+                        transaction.getChiefComplaint(),
+                        transaction.getDisposition(), line.getItem().getName(),
+                        line.getQuantity(), transaction.getRemarks()));
+            }
+        }
         return rows;
     }
 

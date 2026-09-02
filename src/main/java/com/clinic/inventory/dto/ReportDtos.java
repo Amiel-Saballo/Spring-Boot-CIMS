@@ -41,6 +41,13 @@ public final class ReportDtos {
             String remarks) {
     }
 
+    public record SupplyIssuanceHistoryRow(LocalDate dateIssued,
+            String nurseOnDuty, String employeeNumber, String employeeName,
+            String department, String supervisor, String chiefComplaint,
+            String disposition, String itemIssued, int quantity,
+            String remarks) {
+    }
+
     public record EquipmentReportRow(String assetTag, String itemName,
             String serialNumber, String brand, String model, String location,
             List<Integer> monthlyPresence, String remarks) {

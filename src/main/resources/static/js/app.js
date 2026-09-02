@@ -2755,6 +2755,11 @@ function showReport(report) {
     report.transactionType === "ISSUANCE" &&
     report.itemCategory === "MEDICINE";
 
+  const isSupplyIssuance =
+    report.reportType === "TRANSACTION_HISTORY" &&
+    report.transactionType === "ISSUANCE" &&
+    report.itemCategory === "SUPPLY";
+
   if (isMedicineIssuance) {
     content = tableMarkup({
       id: "reportMedicineIssuance",
@@ -2856,11 +2861,101 @@ function showReport(report) {
 
       rows,
     });
+  } else if (isSupplyIssuance) {
+    content = tableMarkup({
+      id: "reportSupplyIssuance",
 
-    // ============================================
-    // ALL OTHER TRANSACTION HISTORY REPORTS
-    // ============================================
-  } else if (report.reportType === "TRANSACTION_HISTORY")
+      searchFields: [
+        "nurseOnDuty",
+        "employeeNumber",
+        "employeeName",
+        "department",
+        "supervisor",
+        "chiefComplaint",
+        "itemIssued",
+        "batchNumber",
+        "remarks",
+      ],
+
+      columns: [
+        {
+          label: "Date",
+          key: "dateIssued",
+          type: "date",
+          width: 120,
+          render: (r) => fmtDate(r.dateIssued),
+        },
+        {
+          label: "Nurse-on-Duty",
+          key: "nurseOnDuty",
+          width: 170,
+        },
+        {
+          label: "Employee No.",
+          key: "employeeNumber",
+          width: 130,
+        },
+        {
+          label: "Employee Name",
+          key: "employeeName",
+          width: 180,
+        },
+        {
+          label: "Department",
+          key: "department",
+          width: 140,
+        },
+        {
+          label: "Supervisor",
+          key: "supervisor",
+          width: 160,
+        },
+        {
+          label: "Chief Complaint",
+          key: "chiefComplaint",
+          width: 200,
+        },
+        {
+          label: "Disposition",
+          key: "disposition",
+          width: 160,
+        },
+        {
+          label: "Item Issued",
+          key: "itemIssued",
+          width: 200,
+        },
+        {
+          label: "Batch No.",
+          key: "batchNumber",
+          width: 140,
+        },
+        {
+          label: "Quantity",
+          key: "quantity",
+          type: "number",
+          width: 90,
+        },
+        {
+          label: "Unit",
+          key: "unitOfMeasure",
+          width: 100,
+        },
+        {
+          label: "Remarks",
+          key: "remarks",
+          width: 250,
+        },
+      ],
+
+      rows,
+    });
+  }
+
+  // ============================================
+  // ALL OTHER TRANSACTION HISTORY REPORTS
+  // ============================================
+  else if (report.reportType === "TRANSACTION_HISTORY")
     content = tableMarkup({
       id: "reportTx",
       searchFields: ["referenceNumber", "user", "itemName", "detail"],

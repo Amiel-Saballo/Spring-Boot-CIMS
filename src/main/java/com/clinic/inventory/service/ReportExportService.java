@@ -24,6 +24,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import com.clinic.inventory.dto.ReportDtos;
+import com.clinic.inventory.dto.ReportDtos.SupplyIssuanceHistoryRow;
 import com.clinic.inventory.enums.ItemCategory;
 import com.clinic.inventory.enums.ReportType;
 import com.clinic.inventory.enums.TransactionType;
@@ -827,6 +828,10 @@ public class ReportExportService {
             return medicineIssuanceTable(report);
         }
 
+        if (isSupplyIssuanceReport(report)) {
+            return supplyIssuanceTable(report);
+        }
+
         List<List<Object>> rows = new ArrayList<>();
         rows.add(List.of("Date", "Transaction Type", "Reference", "User",
                 "Item", "Category", "Activity"));
@@ -874,6 +879,12 @@ public class ReportExportService {
                 && report.itemCategory() == ItemCategory.MEDICINE;
     }
 
+    private boolean isSupplyIssuanceReport(ReportDtos.GeneratedReport report) {
+        return report.reportType() == ReportType.TRANSACTION_HISTORY
+                && report.transactionType() == TransactionType.ISSUANCE
+                && report.itemCategory() == ItemCategory.SUPPLY;
+    }
+
     @SuppressWarnings("unchecked")
     private List<List<Object>> medicineIssuanceTable(
             ReportDtos.GeneratedReport report) {
@@ -896,6 +907,37 @@ public class ReportExportService {
             row.add(r.chiefComplaint());
             row.add(r.disposition());
             row.add(r.dateIssued());
+            row.add(r.quantity());
+            row.add(r.remarks());
+
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<List<Object>> supplyIssuanceTable(
+            ReportDtos.GeneratedReport report) {
+        List<List<Object>> rows = new ArrayList<>();
+
+        rows.add(List.of("Date", "Nurse-On-Duty", "Employee No.",
+                "Employee Name", "Department", "Supervisor", "Chief Complaint",
+                "Disposition", "Item Issued", "Quantity", "Remarks"));
+
+        for (SupplyIssuanceHistoryRow r : (List<ReportDtos.SupplyIssuanceHistoryRow>) report
+                .rows()) {
+            List<Object> row = new ArrayList<>();
+
+            row.add(r.dateIssued());
+            row.add(r.nurseOnDuty());
+            row.add(r.employeeNumber());
+            row.add(r.employeeName());
+            row.add(r.department());
+            row.add(r.supervisor());
+            row.add(r.chiefComplaint());
+            row.add(r.disposition());
+            row.add(r.itemIssued());
             row.add(r.quantity());
             row.add(r.remarks());
 
