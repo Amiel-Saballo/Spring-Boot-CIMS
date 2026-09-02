@@ -26,4 +26,10 @@ public class ReferenceDataRestController {
     @GetMapping("/near-expiry-days") public ReferenceDtos.NearExpiryResponse nearExpiryDays() { return new ReferenceDtos.NearExpiryResponse(service.nearExpiryDays()); }
     @PutMapping("/near-expiry-days") @PreAuthorize("hasAuthority('PERM_SETTINGS')")
     public ReferenceDtos.NearExpiryResponse setNearExpiry(@Valid @RequestBody ReferenceDtos.NearExpiryRequest request) { return service.setNearExpiryDays(request); }
+
+    @PutMapping("/units-of-measure/{id}") @PreAuthorize("hasAnyAuthority('PERM_SETTINGS','PERM_ITEMS')")
+public ReferenceDtos.ReferenceResponse updateUom(@PathVariable Long id, @Valid @RequestBody ReferenceDtos.NameRequest request) { return service.updateUom(id, request); }
+
+@PutMapping("/locations/{id}") @PreAuthorize("hasAuthority('PERM_LOCATIONS')")
+public ReferenceDtos.ReferenceResponse updateLocation(@PathVariable Long id, @Valid @RequestBody ReferenceDtos.NameRequest request) { return service.updateLocation(id, request); }
 }
