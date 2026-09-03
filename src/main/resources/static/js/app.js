@@ -731,8 +731,8 @@ async function pageItems(root) {
     (b) =>
       (b.onclick = () =>
         confirmModal(
-          "Deactivate item",
-          "This is a soft delete. The item will remain in historical records.",
+          "Delete item",
+          "This will only deactivate the item. The item will remain in the records.",
           async () => {
             await api(`/api/items/${b.dataset.id}`, { method: "DELETE" });
             toast("Item deactivated");
