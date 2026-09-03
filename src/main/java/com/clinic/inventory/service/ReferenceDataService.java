@@ -43,6 +43,19 @@ public class ReferenceDataService {
         return new ReferenceDtos.ReferenceResponse(saved.getId(), saved.getName());
     }
 
+    @Transactional
+public ReferenceDtos.ReferenceResponse updateLocation(Long id, ReferenceDtos.NameRequest request) {
+    ClinicLocation location = locationRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Location not found"));
+    String name = request.name().trim();
+    locationRepository.findByNameIgnoreCase(name)
+            .filter(x -> !x.getId().equals(id))
+            .ifPresent(x -> { throw new BusinessRuleException("Location already exists"); });
+    location.setName(name);
+    ClinicLocation saved = locationRepository.save(location);
+    return new ReferenceDtos.ReferenceResponse(saved.getId(), saved.getName());
+}
+
     @Transactional(readOnly = true)
     public int nearExpiryDays() { return Integer.parseInt(settingRepository.findByKey(NEAR_EXPIRY_DAYS).orElseThrow().getValue()); }
     @Transactional
@@ -52,4 +65,18 @@ public class ReferenceDataService {
         settingRepository.save(setting);
         return new ReferenceDtos.NearExpiryResponse(request.days());
     }
+
+    @Transactional
+public ReferenceDtos.ReferenceResponse updateUom(Long id, ReferenceDtos.NameRequest request) {
+    UnitOfMeasure uom = uomRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Unit of Measure not found"));
+    String name = request.name().trim();
+    uomRepository.findByNameIgnoreCase(name)
+            .filter(x -> !x.getId().equals(id))
+            .ifPresent(x -> { throw new BusinessRuleException("Unit of Measure already exists"); });
+    uom.setName(name);
+    UnitOfMeasure saved = uomRepository.save(uom);
+    return new ReferenceDtos.ReferenceResponse(saved.getId(), saved.getName());
+}
+
 }
