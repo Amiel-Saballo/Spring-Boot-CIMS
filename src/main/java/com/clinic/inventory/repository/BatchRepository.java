@@ -44,4 +44,10 @@ public interface BatchRepository extends JpaRepository<Batch, Long> {
 
     List<Batch> findByExpiryDateBeforeAndStatus(LocalDate date,
             BatchStatus status);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select b from Batch b where b.item.id = :itemId and b.status = :status and b.onHand > 0 and (b.expiryDate is null or b.expiryDate >= :issuanceDate) order by case when b.expiryDate is null then 1 else 0 end, b.expiryDate asc, b.id asc")
+    List<Batch> findIssuableBatchesFefo(@Param("itemId") Long itemId,
+            @Param("status") BatchStatus status,
+            @Param("issuanceDate") LocalDate issuanceDate);
 }
