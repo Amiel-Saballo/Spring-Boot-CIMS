@@ -33,8 +33,9 @@ public class DashboardService {
     private final ReferenceDataService referenceDataService;
     private final DtoMapper mapper;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public DashboardDtos.Response get() {
+        batchRepository.markExpiredActiveBatches(BatchStatus.EXPIRED, BatchStatus.ACTIVE);
         var activeItems = itemRepository
                 .findByStatusOrderByCodeAsc(ItemStatus.ACTIVE);
         int days = referenceDataService.nearExpiryDays();
@@ -47,7 +48,7 @@ public class DashboardService {
                         && b.getOnHand() > 0)
                 .toList();
         var expired = batchRepository
-                .findByExpiryDateBeforeAndStatus(today, BatchStatus.ACTIVE)
+                .findByExpiryDateBeforeAndStatus(today, BatchStatus.EXPIRED)
                 .stream()
                 .filter(b -> b.getItem().getCategory() == ItemCategory.MEDICINE
                         && b.getOnHand() > 0)

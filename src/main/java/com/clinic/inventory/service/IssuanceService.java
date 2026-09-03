@@ -30,6 +30,7 @@ public class IssuanceService {
 
     @Transactional
     public IssuanceDtos.Response create(IssuanceDtos.CreateRequest request, UserAccount user) {
+        batchRepository.markExpiredActiveBatches(BatchStatus.EXPIRED, BatchStatus.ACTIVE);
         String ref = "ISS-" + request.dateIssued().toString().replace("-", "") + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         IssuanceTransaction tx = IssuanceTransaction.builder().referenceNumber(ref).dateIssued(request.dateIssued())
                 .employeeNumber(request.employeeNumber().trim()).employeeName(request.employeeName().trim())
@@ -103,6 +104,11 @@ public class IssuanceService {
         int remaining = requested;
         List<Batch> batches = batchRepository.findByItemIdAndStatusAndOnHandGreaterThanOrderByExpiryDateAscIdAsc(item.getId(), BatchStatus.ACTIVE, 0);
         for (Batch batch : batches) {
+            if (batch.getExpiryDate() != null && !batch.getExpiryDate().isAfter(LocalDate.now())) {
+                batch.setStatus(BatchStatus.EXPIRED);
+                batchRepository.save(batch);
+                continue;
+            }
             if (remaining <= 0) break;
             int take = Math.min(remaining, batch.getOnHand());
             batch.setOnHand(batch.getOnHand() - take);
