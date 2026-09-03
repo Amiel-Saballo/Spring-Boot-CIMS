@@ -793,6 +793,7 @@ function openItemForm(item, refs) {
       newUoMPanel.style.display = "block";
       newUoMName.value = "";
       setTimeout(() => newUoMName.focus(), 0);
+      uomSelect.disabled = true;
     } else {
       previousUoM = uomSelect.value;
       newUoMPanel.style.display = "block";
@@ -843,6 +844,7 @@ function openItemForm(item, refs) {
       toast(err.message, "error");
     } finally {
       saveNewUoM.disabled = false;
+      uomSelect.disabled = false;
     }
   };
 
