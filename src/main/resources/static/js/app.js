@@ -1972,9 +1972,13 @@ function openIssuanceEdit(r) {
   let lines = r.lines.map((x) => ({ ...x }));
   const body = modal(
     `Edit issuance · ${r.referenceNumber}`,
-    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary">Save changes</button></div></form>`,
+    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary" id="eiSave" disabled>Save changes</button></div></form>`,
     { wide: true },
   );
+  const initialLinesState = JSON.stringify(
+      lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
+    );
+
   const render = () => {
     $("#editIssLines", body).innerHTML = tableMarkup({
       id: "editIssLinesTable",
@@ -2007,10 +2011,36 @@ function openIssuanceEdit(r) {
             return toast("An issuance must contain at least one item", "error");
           lines = lines.filter((x) => x.id != b.dataset.id);
           render();
+		  checkChanges();
         }),
     );
   };
   render();
+  const formControls = Array.from(
+      $("#editIssForm", body).querySelectorAll("input, select, textarea")
+    );
+    const initialFormValues = new Map(formControls.map((input) => [input, input.value]));
+    const checkChanges = () => {
+      const formHasChanged = formControls.some(
+        (input) => input.value !== initialFormValues.get(input)
+      );
+
+      $$(".lineQty", body).forEach((inp) => {
+        const l = lines.find((x) => x.id == inp.dataset.id);
+        if (l) l.quantity = Number(inp.value);
+      });
+
+      const currentLinesState = JSON.stringify(
+        lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
+      );
+      const linesHaveChanged = currentLinesState !== initialLinesState;
+
+      $("#eiSave", body).disabled = !(formHasChanged || linesHaveChanged);
+    };
+
+    $("#editIssForm", body).addEventListener("input", checkChanges);
+    $("#editIssForm", body).addEventListener("change", checkChanges);
+    checkChanges();
   $("#eiCancel", body).onclick = closeModal;
   $("#editIssForm", body).onsubmit = async (e) => {
     e.preventDefault();
