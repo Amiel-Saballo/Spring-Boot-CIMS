@@ -1741,13 +1741,293 @@ async function pageApprovals(root) {
         )),
   );
 }
+
 function reviewApproval(r) {
-  modal(
+  const pageSize = 10;
+  let currentPage = 0;
+
+  const body = modal(
     `Review receiving · ${r.referenceNumber}`,
-    `<div class="form-grid"><div class="field"><label>Reference number</label><div class="notice mono">${esc(r.referenceNumber)}</div></div><div class="field"><label>Supplier</label><div class="notice">${esc(r.supplierName)}</div></div><div class="field"><label>Date received</label><div class="notice">${fmtDate(r.dateReceived)}</div></div><div class="field"><label>Encoded by</label><div class="notice">${esc(r.receivedBy)}</div></div><div class="field span-4"><label>Remarks</label><div class="notice">${esc(r.remarks || "—")}</div></div></div><div class="stack" style="margin-top:14px">${r.lines.map((l) => `<div class="card"><div class="card-body"><div class="grid cols-3"><div><div class="small muted">Item</div><b>${esc(l.itemName)}</b><div class="small mono muted">${esc(l.itemCode)}</div></div><div><div class="small muted">Quantity</div><b class="nowrap">${l.quantity} ${esc(l.unitOfMeasure)}</b></div><div><div class="small muted">Details</div>${l.category === "EQUIPMENT" ? `Brand: ${esc(l.brand || "—")}<br>Model: ${esc(l.model || "—")}<br>Serial number: ${esc(l.serialNumber || "—")}<br>Asset tag: ${esc(l.assetTag || "—")}<br>Location: ${esc(l.location)}` : `Brand: ${esc(l.brand || "—")}<br>Batch number: ${esc(l.batchNumber || "—")}<br>Expiry: ${fmtDate(l.expiryDate)}<br>Location: ${esc(l.location)}`}</div></div></div></div>`).join("")}</div>`,
+
+    `
+<div class="form-grid">
+
+<div class="field">
+<label>Reference number</label>
+<div class="notice mono">
+${esc(r.referenceNumber)}
+</div>
+</div>
+
+<div class="field">
+<label>Supplier</label>
+<div class="notice">
+${esc(r.supplierName)}
+</div>
+</div>
+
+<div class="field">
+<label>Date received</label>
+<div class="notice">
+${fmtDate(r.dateReceived)}
+</div>
+</div>
+
+<div class="field">
+<label>Encoded by</label>
+<div class="notice">
+${esc(r.receivedBy)}
+</div>
+</div>
+
+<div class="field span-4">
+<label>Remarks</label>
+<div class="notice">
+${esc(r.remarks || "—")}
+</div>
+</div>
+
+</div>
+
+
+<div
+id="approvalReviewItems"
+class="stack"
+style="margin-top:14px"
+></div>
+
+
+<div
+id="approvalReviewPagination"
+class="pagination"
+>
+<span
+class="small muted"
+id="approvalReviewCount"
+></span>
+
+<div
+class="pages"
+id="approvalReviewPages"
+></div>
+</div>
+`,
+
     { wide: true },
   );
+
+  const itemsContainer = $("#approvalReviewItems", body);
+
+  const count = $("#approvalReviewCount", body);
+
+  const pagesContainer = $("#approvalReviewPages", body);
+
+  const renderItems = () => {
+    const totalItems = r.lines.length;
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    currentPage = Math.min(currentPage, totalPages - 1);
+
+    const start = currentPage * pageSize;
+
+    const end = Math.min(start + pageSize, totalItems);
+
+    const pageLines = r.lines.slice(start, end);
+
+    // -------------------------------------
+    // Render only 10 items at a time
+    // -------------------------------------
+
+    itemsContainer.innerHTML = pageLines
+      .map(
+        (l) => `
+
+<div class="card">
+
+<div class="card-body">
+
+<div class="grid cols-3">
+
+<div>
+<div class="small muted">
+Item
+</div>
+
+<b>
+${esc(l.itemName)}
+</b>
+
+<div class="small mono muted">
+${esc(l.itemCode)}
+</div>
+</div>
+
+
+<div>
+<div class="small muted">
+Quantity
+</div>
+
+<b class="nowrap">
+${l.quantity}
+${esc(l.unitOfMeasure)}
+</b>
+</div>
+
+
+<div>
+
+<div class="small muted">
+Details
+</div>
+
+${
+  l.category === "EQUIPMENT"
+    ? `
+Brand:
+${esc(l.brand || "—")}
+<br>
+
+Model:
+${esc(l.model || "—")}
+<br>
+
+Serial number:
+${esc(l.serialNumber || "—")}
+<br>
+
+Asset tag:
+${esc(l.assetTag || "—")}
+<br>
+
+Location:
+${esc(l.location || "—")}
+`
+    : `
+Brand:
+${esc(l.brand || "—")}
+<br>
+
+Batch number:
+${esc(l.batchNumber || "—")}
+<br>
+
+Expiry:
+${l.expiryDate ? fmtDate(l.expiryDate) : "—"}
+<br>
+
+Location:
+${esc(l.location || "—")}
+`
 }
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+`,
+      )
+      .join("");
+
+    // -------------------------------------
+    // Count
+    // -------------------------------------
+
+    if (totalItems === 0) {
+      count.textContent = "0 items";
+    } else {
+      count.textContent = `${start + 1}–${end} of ${totalItems} items`;
+    }
+
+    // -------------------------------------
+    // Hide pagination if <= 10 items
+    // -------------------------------------
+
+    if (totalPages <= 1) {
+      pagesContainer.innerHTML = "";
+
+      return;
+    }
+
+    // -------------------------------------
+    // Pagination buttons
+    // -------------------------------------
+
+    pagesContainer.innerHTML = `
+
+<button
+type="button"
+class="page-btn"
+data-review-page="prev"
+${currentPage === 0 ? "disabled" : ""}
+>
+‹
+</button>
+
+
+${Array.from(
+  { length: totalPages },
+  (_, index) => `
+
+<button
+type="button"
+class="page-btn
+${index === currentPage ? "active" : ""}
+"
+data-review-page="${index}"
+>
+${index + 1}
+</button>
+
+`,
+).join("")}
+
+
+<button
+type="button"
+class="page-btn"
+data-review-page="next"
+${currentPage === totalPages - 1 ? "disabled" : ""}
+>
+›
+</button>
+`;
+
+    // -------------------------------------
+    // Bind page buttons
+    // -------------------------------------
+
+    $$("[data-review-page]", pagesContainer).forEach((button) => {
+      button.onclick = () => {
+        const page = button.dataset.reviewPage;
+
+        if (page === "prev") {
+          currentPage = Math.max(0, currentPage - 1);
+        } else if (page === "next") {
+          currentPage = Math.min(totalPages - 1, currentPage + 1);
+        } else {
+          currentPage = Number(page);
+        }
+
+        renderItems();
+      };
+    });
+  };
+
+  renderItems();
+}
+// function reviewApproval(r) {
+//   modal(
+//     `Review receiving · ${r.referenceNumber}`,
+//     `<div class="form-grid"><div class="field"><label>Reference number</label><div class="notice mono">${esc(r.referenceNumber)}</div></div><div class="field"><label>Supplier</label><div class="notice">${esc(r.supplierName)}</div></div><div class="field"><label>Date received</label><div class="notice">${fmtDate(r.dateReceived)}</div></div><div class="field"><label>Encoded by</label><div class="notice">${esc(r.receivedBy)}</div></div><div class="field span-4"><label>Remarks</label><div class="notice">${esc(r.remarks || "—")}</div></div></div><div class="stack" style="margin-top:14px">${r.lines.map((l) => `<div class="card"><div class="card-body"><div class="grid cols-3"><div><div class="small muted">Item</div><b>${esc(l.itemName)}</b><div class="small mono muted">${esc(l.itemCode)}</div></div><div><div class="small muted">Quantity</div><b class="nowrap">${l.quantity} ${esc(l.unitOfMeasure)}</b></div><div><div class="small muted">Details</div>${l.category === "EQUIPMENT" ? `Brand: ${esc(l.brand || "—")}<br>Model: ${esc(l.model || "—")}<br>Serial number: ${esc(l.serialNumber || "—")}<br>Asset tag: ${esc(l.assetTag || "—")}<br>Location: ${esc(l.location)}` : `Brand: ${esc(l.brand || "—")}<br>Batch number: ${esc(l.batchNumber || "—")}<br>Expiry: ${fmtDate(l.expiryDate)}<br>Location: ${esc(l.location)}`}</div></div></div></div>`).join("")}</div>`,
+//     { wide: true },
+//   );
+// }
 
 async function pageIssuance(root) {
   const [allItems, allBatches] = await Promise.all([
@@ -1976,8 +2256,8 @@ function openIssuanceEdit(r) {
     { wide: true },
   );
   const initialLinesState = JSON.stringify(
-      lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
-    );
+    lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) })),
+  );
 
   const render = () => {
     $("#editIssLines", body).innerHTML = tableMarkup({
@@ -2011,36 +2291,38 @@ function openIssuanceEdit(r) {
             return toast("An issuance must contain at least one item", "error");
           lines = lines.filter((x) => x.id != b.dataset.id);
           render();
-		  checkChanges();
+          checkChanges();
         }),
     );
   };
   render();
   const formControls = Array.from(
-      $("#editIssForm", body).querySelectorAll("input, select, textarea")
+    $("#editIssForm", body).querySelectorAll("input, select, textarea"),
+  );
+  const initialFormValues = new Map(
+    formControls.map((input) => [input, input.value]),
+  );
+  const checkChanges = () => {
+    const formHasChanged = formControls.some(
+      (input) => input.value !== initialFormValues.get(input),
     );
-    const initialFormValues = new Map(formControls.map((input) => [input, input.value]));
-    const checkChanges = () => {
-      const formHasChanged = formControls.some(
-        (input) => input.value !== initialFormValues.get(input)
-      );
 
-      $$(".lineQty", body).forEach((inp) => {
-        const l = lines.find((x) => x.id == inp.dataset.id);
-        if (l) l.quantity = Number(inp.value);
-      });
+    $$(".lineQty", body).forEach((inp) => {
+      const l = lines.find((x) => x.id == inp.dataset.id);
+      if (l) l.quantity = Number(inp.value);
+    });
 
-      const currentLinesState = JSON.stringify(
-        lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
-      );
-      const linesHaveChanged = currentLinesState !== initialLinesState;
+    const currentLinesState = JSON.stringify(
+      lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) })),
+    );
+    const linesHaveChanged = currentLinesState !== initialLinesState;
 
-      $("#eiSave", body).disabled = !(formHasChanged || linesHaveChanged);
-    };
+    $("#eiSave", body).disabled = !(formHasChanged || linesHaveChanged);
+  };
 
-    $("#editIssForm", body).addEventListener("input", checkChanges);
-    $("#editIssForm", body).addEventListener("change", checkChanges);
-    checkChanges();
+  $("#editIssForm", body).addEventListener("input", checkChanges);
+  $("#editIssForm", body).addEventListener("change", checkChanges);
+  checkChanges();
   $("#eiCancel", body).onclick = closeModal;
   $("#editIssForm", body).onsubmit = async (e) => {
     e.preventDefault();
