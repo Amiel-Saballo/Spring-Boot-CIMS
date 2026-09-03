@@ -52,20 +52,15 @@ public class IssuanceService {
     }
 
     @Transactional
-    public IssuanceDtos.Response create(IssuanceDtos.CreateRequest request,
-            UserAccount user) {
-        String ref = "ISS-" + request.dateIssued().toString().replace("-", "")
-                + "-"
-                + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        IssuanceTransaction tx = IssuanceTransaction.builder()
-                .referenceNumber(ref).dateIssued(request.dateIssued())
-                .employeeNumber(request.employeeNumber().trim())
-                .employeeName(request.employeeName().trim())
-                .department(trim(request.department()))
-                .supervisor(trim(request.supervisor()))
-                .chiefComplaint(request.chiefComplaint().trim())
-                .disposition(request.disposition().trim())
-                .remarks(trim(request.remarks())).recordedBy(user).build();
+    public IssuanceDtos.Response create(IssuanceDtos.CreateRequest request, UserAccount user) {
+        if(!request.dateIssued().isEqual(LocalDate.now())){
+            throw new BusinessRuleException("Issuance date must be the current date.");
+        }
+        String ref = "ISS-" + request.dateIssued().toString().replace("-", "") + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        IssuanceTransaction tx = IssuanceTransaction.builder().referenceNumber(ref).dateIssued(request.dateIssued())
+                .employeeNumber(request.employeeNumber().trim()).employeeName(request.employeeName().trim())
+                .department(trim(request.department())).supervisor(trim(request.supervisor())).chiefComplaint(request.chiefComplaint().trim())
+                .disposition(request.disposition().trim()).remarks(trim(request.remarks())).recordedBy(user).build();
 
         List<IssuanceLine> lines = new ArrayList<>();
         Map<Long, Integer> beforeTotals = new LinkedHashMap<>();
