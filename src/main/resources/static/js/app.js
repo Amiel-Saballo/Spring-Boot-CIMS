@@ -732,8 +732,8 @@ async function pageItems(root) {
     (b) =>
       (b.onclick = () =>
         confirmModal(
-          "Deactivate item",
-          "This is a soft delete. The item will remain in historical records.",
+          "Delete item",
+          "This will only deactivate the item. The item will remain in the records.",
           async () => {
             await api(`/api/items/${b.dataset.id}`, { method: "DELETE" });
             toast("Item deactivated");
@@ -760,34 +760,131 @@ function openItemForm(item, refs) {
   const isEdit = !!item,
     body = modal(
       isEdit ? "Edit item" : "Add new item",
-      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="itemForm">
+  <div class="form-grid">
+    <div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div>
+    <div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div>
+    <div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    <div class="field"><label class="req">Unit of Measure</label><select id="itemUoM">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div>
+        <div class="field span-2" id="newUoMPanel" style="display:none">
+      <div class="notice">
+        <div style="font-weight:600; margin-bottom:8px;">Add Unit of Measure</div>
+        <div class="field"><label class="req">Unit of Measure Name</label><input id="newUoMName" type="text" placeholder="e.g. Tablet, Box, Bottle" autocomplete="off"></div>
+        <div class="actions" style="margin-top:10px"><button type="button" class="btn primary small" id="saveNewUoM">Add Unit of Measure</button><button type="button" class="btn small" id="cancelNewUoM">Cancel</button></div>
+      </div>
+    </div>
+    <div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div>
+    <div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div>
+  </div>
+  <div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div>
+</form>`,
     );
   $("#cancelItem", body).onclick = closeModal;
-  $("#itemUom", body).onchange = async (e) => {
-    if (e.target.value === "new") {
-      const name = prompt("Enter a new Unit of Measurement");
-      if (!name) {
-        e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
-        return;
-      }
-      try {
-        const u = await api("/api/settings/units-of-measure", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        });
-        refs.uoms.push(u);
-        e.target.insertAdjacentHTML(
-          "afterbegin",
-          `<option value="${u.id}">${esc(u.name)}</option>`,
-        );
-        e.target.value = u.id;
-      } catch (err) {
-        toast(err.message, "error");
-      }
+
+  const uomSelect = $("#itemUoM", body);
+  const newUoMPanel = $("#newUoMPanel", body);
+  const newUoMName = $("#newUoMName", body);
+  const saveNewUoM = $("#saveNewUoM", body);
+  const cancelNewUoM = $("#cancelNewUoM", body);
+
+  let previousUoM = uomSelect.value !== "new" ? uomSelect.value : "";
+
+  uomSelect.onchange = () => {
+    if (uomSelect.value === "new") {
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
+      setTimeout(() => newUoMName.focus(), 0);
+      uomSelect.disabled = true;
+    } else {
+      previousUoM = uomSelect.value;
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
     }
   };
+
+  cancelNewUoM.onclick = () => {
+    newUoMPanel.style.display = "none";
+    newUoMName.value = "";
+    uomSelect.value = previousUoM || refs.uoms[0]?.id || "";
+  };
+
+  saveNewUoM.onclick = async () => {
+    const name = newUoMName.value.trim();
+
+    if (!name) {
+      return toast("Enter a Unit of Measure", "error");
+    }
+
+    try {
+      saveNewUoM.disabled = "true";
+
+      const u = await api("/api/settings/units-of-measure", {
+        method: "POST",
+        body: JSON.stringify({
+          name: name,
+        }),
+      });
+
+      refs.uoms.push(u);
+
+      const option = document.createElement("option");
+      option.value = u.id;
+      option.textContent = u.name;
+
+      const newOption = uomSelect.querySelector('option[value="new"]');
+      uomSelect.insertBefore(option, newOption);
+
+      uomSelect.value = u.id;
+      previousUoM = String(u.id);
+
+      newUoMPanel.style.display = "none";
+      newUoMName.value = "";
+
+      toast("Unit of Measure added");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      saveNewUoM.disabled = false;
+      uomSelect.disabled = false;
+    }
+  };
+
+  newUoMName.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveNewUoM.click();
+    }
+  };
+
+  // $("#itemUom", body).onchange = async (e) => {
+  //   if (e.target.value === "new") {
+  //     const name = prompt("Enter a new Unit of Measurement");
+  //     if (!name) {
+  //       e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
+  //       return;
+  //     }
+  //     try {
+  //       const u = await api("/api/settings/units-of-measure", {
+  //         method: "POST",
+  //         body: JSON.stringify({ name }),
+  //       });
+  //       refs.uoms.push(u);
+  //       e.target.insertAdjacentHTML(
+  //         "afterbegin",
+  //         `<option value="${u.id}">${esc(u.name)}</option>`,
+  //       );
+  //       e.target.value = u.id;
+  //     } catch (err) {
+  //       toast(err.message, "error");
+  //     }
+  //   }
+  // };
   $("#itemForm", body).onsubmit = async (e) => {
     e.preventDefault();
+    if ($("#itemUoM", body).value === "new") {
+      return toast("Add or select a Unit of Measure first", "error");
+    }
+
     const req = {
       code: $("#itemCode").value.trim(),
       name: $("#itemName").value.trim(),
@@ -1877,9 +1974,13 @@ function openIssuanceEdit(r) {
   let lines = r.lines.map((x) => ({ ...x }));
   const body = modal(
     `Edit issuance · ${r.referenceNumber}`,
-    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary">Save changes</button></div></form>`,
+    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary" id="eiSave" disabled>Save changes</button></div></form>`,
     { wide: true },
   );
+  const initialLinesState = JSON.stringify(
+      lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
+    );
+
   const render = () => {
     $("#editIssLines", body).innerHTML = tableMarkup({
       id: "editIssLinesTable",
@@ -1912,10 +2013,36 @@ function openIssuanceEdit(r) {
             return toast("An issuance must contain at least one item", "error");
           lines = lines.filter((x) => x.id != b.dataset.id);
           render();
+		  checkChanges();
         }),
     );
   };
   render();
+  const formControls = Array.from(
+      $("#editIssForm", body).querySelectorAll("input, select, textarea")
+    );
+    const initialFormValues = new Map(formControls.map((input) => [input, input.value]));
+    const checkChanges = () => {
+      const formHasChanged = formControls.some(
+        (input) => input.value !== initialFormValues.get(input)
+      );
+
+      $$(".lineQty", body).forEach((inp) => {
+        const l = lines.find((x) => x.id == inp.dataset.id);
+        if (l) l.quantity = Number(inp.value);
+      });
+
+      const currentLinesState = JSON.stringify(
+        lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) }))
+      );
+      const linesHaveChanged = currentLinesState !== initialLinesState;
+
+      $("#eiSave", body).disabled = !(formHasChanged || linesHaveChanged);
+    };
+
+    $("#editIssForm", body).addEventListener("input", checkChanges);
+    $("#editIssForm", body).addEventListener("change", checkChanges);
+    checkChanges();
   $("#eiCancel", body).onclick = closeModal;
   $("#editIssForm", body).onsubmit = async (e) => {
     e.preventDefault();
