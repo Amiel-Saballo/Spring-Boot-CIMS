@@ -759,34 +759,129 @@ function openItemForm(item, refs) {
   const isEdit = !!item,
     body = modal(
       isEdit ? "Edit item" : "Add new item",
-      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="itemForm">
+  <div class="form-grid">
+    <div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div>
+    <div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div>
+    <div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    <div class="field"><label class="req">Unit of Measure</label><select id="itemUoM">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div>
+        <div class="field span-2" id="newUoMPanel" style="display:none">
+      <div class="notice">
+        <div style="font-weight:600; margin-bottom:8px;">Add Unit of Measure</div>
+        <div class="field"><label class="req">Unit of Measure Name</label><input id="newUoMName" type="text" placeholder="e.g. Tablet, Box, Bottle" autocomplete="off"></div>
+        <div class="actions" style="margin-top:10px"><button type="button" class="btn primary small" id="saveNewUoM">Add Unit of Measure</button><button type="button" class="btn small" id="cancelNewUoM">Cancel</button></div>
+      </div>
+    </div>
+    <div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div>
+    <div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div>
+  </div>
+  <div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div>
+</form>`,
     );
   $("#cancelItem", body).onclick = closeModal;
-  $("#itemUom", body).onchange = async (e) => {
-    if (e.target.value === "new") {
-      const name = prompt("Enter a new Unit of Measurement");
-      if (!name) {
-        e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
-        return;
-      }
-      try {
-        const u = await api("/api/settings/units-of-measure", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        });
-        refs.uoms.push(u);
-        e.target.insertAdjacentHTML(
-          "afterbegin",
-          `<option value="${u.id}">${esc(u.name)}</option>`,
-        );
-        e.target.value = u.id;
-      } catch (err) {
-        toast(err.message, "error");
-      }
+
+  const uomSelect = $("#itemUoM", body);
+  const newUoMPanel = $("#newUoMPanel", body);
+  const newUoMName = $("#newUoMName", body);
+  const saveNewUoM = $("#saveNewUoM", body);
+  const cancelNewUoM = $("#cancelNewUoM", body);
+
+  let previousUoM = uomSelect.value !== "new" ? uomSelect.value : "";
+
+  uomSelect.onchange = () => {
+    if (uomSelect.value === "new") {
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
+      setTimeout(() => newUoMName.focus(), 0);
+    } else {
+      previousUoM = uomSelect.value;
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
     }
   };
+
+  cancelNewUoM.onclick = () => {
+    newUoMPanel.style.display = "none";
+    newUoMName.value = "";
+    uomSelect.value = previousUoM || refs.uoms[0]?.id || "";
+  };
+
+  saveNewUoM.onclick = async () => {
+    const name = newUoMName.value.trim();
+
+    if (!name) {
+      return toast("Enter a Unit of Measure", "error");
+    }
+
+    try {
+      saveNewUoM.disabled = "true";
+
+      const u = await api("/api/settings/units-of-measure", {
+        method: "POST",
+        body: JSON.stringify({
+          name: name,
+        }),
+      });
+
+      refs.uoms.push(u);
+
+      const option = document.createElement("option");
+      option.value = u.id;
+      option.textContent = u.name;
+
+      const newOption = uomSelect.querySelector('option[value="new"]');
+      uomSelect.insertBefore(option, newOption);
+
+      uomSelect.value = u.id;
+      previousUoM = String(u.id);
+
+      newUoMPanel.style.display = "none";
+      newUoMName.value = "";
+
+      toast("Unit of Measure added");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      saveNewUoM.disabled = false;
+    }
+  };
+
+  newUoMName.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveNewUoM.click();
+    }
+  };
+
+  // $("#itemUom", body).onchange = async (e) => {
+  //   if (e.target.value === "new") {
+  //     const name = prompt("Enter a new Unit of Measurement");
+  //     if (!name) {
+  //       e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
+  //       return;
+  //     }
+  //     try {
+  //       const u = await api("/api/settings/units-of-measure", {
+  //         method: "POST",
+  //         body: JSON.stringify({ name }),
+  //       });
+  //       refs.uoms.push(u);
+  //       e.target.insertAdjacentHTML(
+  //         "afterbegin",
+  //         `<option value="${u.id}">${esc(u.name)}</option>`,
+  //       );
+  //       e.target.value = u.id;
+  //     } catch (err) {
+  //       toast(err.message, "error");
+  //     }
+  //   }
+  // };
   $("#itemForm", body).onsubmit = async (e) => {
     e.preventDefault();
+    if ($("#itemUoM", body).value === "new") {
+      return toast("Add or select a Unit of Measure first", "error");
+    }
+
     const req = {
       code: $("#itemCode").value.trim(),
       name: $("#itemName").value.trim(),
