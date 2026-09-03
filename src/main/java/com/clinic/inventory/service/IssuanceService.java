@@ -30,6 +30,9 @@ public class IssuanceService {
 
     @Transactional
     public IssuanceDtos.Response create(IssuanceDtos.CreateRequest request, UserAccount user) {
+        if(!request.dateIssued().isEqual(LocalDate.now())){
+            throw new BusinessRuleException("Issuance date must be the current date.");
+        }
         String ref = "ISS-" + request.dateIssued().toString().replace("-", "") + "-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         IssuanceTransaction tx = IssuanceTransaction.builder().referenceNumber(ref).dateIssued(request.dateIssued())
                 .employeeNumber(request.employeeNumber().trim()).employeeName(request.employeeName().trim())
