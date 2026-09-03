@@ -430,7 +430,7 @@ function tableMarkup({
     .join("");
   const controls =
     search || filters.length
-      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
+      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}" ${String(o.value) === String(f.value ?? "") ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
       : "";
   return `<div class="table-box" data-table-id="${id}" data-search-fields="${esc((searchFields || []).join(","))}">${controls}<div class="table-wrap"><table class="data-table"><colgroup>${cols}</colgroup><thead><tr>${columns.map((c, i) => `<th class="${c.sortable === false ? "" : "sortable"}" data-col="${i}" data-key="${esc(c.key || "")}" data-type="${esc(c.type || "text")}">${esc(c.label)}${c.sortable === false ? "" : ' <span class="sort-ind">↕</span>'}</th>`).join("")}</tr></thead><tbody>${rows.map((r, ri) => `<tr data-row="${ri}">${columns.map((c) => `<td>${c.render ? c.render(r) : esc(r[c.key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="pagination"><span class="small muted table-count"></span><div class="pages"></div></div><script type="application/json" class="table-data">${esc(JSON.stringify(rows))}</script></div>`;
 }
@@ -672,6 +672,7 @@ async function pageItems(root) {
         },
         {
           key: "status",
+          value: "ACTIVE",
           allLabel: "All statuses",
           options: ["ACTIVE", "INACTIVE"].map((x) => ({
             value: x,
@@ -1662,6 +1663,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
       closeModal();
       toast("Returned item updated");
       await onUpdated(updated);
+      await renderPage();
     } catch (err) {
       toast(err.message, "error");
     }
@@ -2522,6 +2524,7 @@ function openEquipmentStatus(r) {
   const body = modal(
     `Edit equipment status · ${r.assetTag}`,
     `<form id="eqStatusForm"><div class="form-grid"><div class="field span-2"><label>Equipment</label><input value="${esc(r.equipmentName)}" disabled></div><div class="field"><label>Asset tag</label><input value="${esc(r.assetTag)}" disabled></div><div class="field"><label>Serial number</label><input value="${esc(r.serialNumber)}" disabled></div><div class="field"><label>Brand</label><input value="${esc(r.brand || "")}" disabled></div><div class="field"><label>Model</label><input value="${esc(r.model || "")}" disabled></div><div class="field"><label>Location</label><input value="${esc(r.location)}" disabled></div><div class="field"><label class="req">Status</label><select id="eqStatus">${["IN_USE", "MAINTENANCE", "RETIRED"].map((x) => `<option ${x === r.status ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label class="req">Adjustment reason</label><textarea id="eqReason" required></textarea></div></div><div class="modal-actions"><button type="button" class="btn" id="eqCancel">Cancel</button><button class="btn primary">Save status</button></div></form>`,
+  
   );
   $("#eqCancel", body).onclick = closeModal;
   $("#eqStatusForm", body).onsubmit = async (e) => {
@@ -3608,7 +3611,7 @@ function showReport(report) {
       rows,
     });
   else if (report.reportType === "EQUIPMENT_REGISTRY") {
-    content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th style="width:150px">Property Number</th><th style="width:220px">Item</th>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m) => `<th style="width:70px">${m}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.assetTag)}</td><td>${esc(r.itemName)}</td>${r.monthlyPresence.map((v) => `<td>${v ?? ""}</td>`).join("")}</tr><tr><td><b>Remarks</b></td><td colspan="13">${esc(r.remarks || "")}</td></tr>`).join("")}</tbody></table></div>`;
+    content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th style="width:150px">Asset Tag</th><th style="width:220px">Item</th>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m) => `<th style="width:70px">${m}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.assetTag)}</td><td>${esc(r.itemName)}</td>${r.monthlyPresence.map((v) => `<td>${v ?? ""}</td>`).join("")}</tr><tr><td><b>Remarks</b></td><td colspan="13">${esc(r.remarks || "")}</td></tr>`).join("")}</tbody></table></div>`;
   } else {
     content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Item</th><th>Running Bal</th><th>Total Monthly Dispensed</th><th>Beginning Inv</th>${Array.from({ length: 5 }, (_, i) => `<th>W${i + 1} DEL</th><th>W${i + 1} Pullout/Returns</th><th>W${i + 1} Dispensed</th><th>W${i + 1} Ending Inv</th><th>W${i + 1} Actual Inv</th><th>W${i + 1} VAR</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.itemName)}</td><td>${r.runningBalance}</td><td>${r.totalMonthlyDispensed}</td><td>${r.beginningInventory}</td>${r.weeks.map((w) => `<td>${w.delivery}</td><td>0</td><td>${w.dispensed}</td><td>${w.endingInventory}</td><td>${w.actualInventory}</td><td>${w.variance}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   }
