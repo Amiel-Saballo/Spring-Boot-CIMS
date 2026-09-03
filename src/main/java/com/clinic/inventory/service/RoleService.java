@@ -1,16 +1,24 @@
 package com.clinic.inventory.service;
 
-import com.clinic.inventory.dto.UserRoleDtos;
-import com.clinic.inventory.entity.*;
-import com.clinic.inventory.exception.*;
-import com.clinic.inventory.repository.*;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.*;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashSet;
-import java.util.Set;
+import com.clinic.inventory.dto.UserRoleDtos;
+import com.clinic.inventory.entity.Permission;
+import com.clinic.inventory.entity.Role;
+import com.clinic.inventory.exception.BusinessRuleException;
+import com.clinic.inventory.exception.ResourceNotFoundException;
+import com.clinic.inventory.repository.PermissionRepository;
+import com.clinic.inventory.repository.RoleRepository;
+import com.clinic.inventory.repository.UserAccountRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +41,7 @@ public class RoleService {
         if (roleRepository.findByNameIgnoreCase(request.name()).isPresent()) throw new BusinessRuleException("Role name already exists");
         Role role = Role.builder().name(request.name().trim()).description(request.description().trim()).active(request.active())
                 .permissions(resolvePermissions(request.permissionCodes())).build();
+        if (role.getPermissions().isEmpty()) throw new BusinessRuleException("Role must have at least one permission");
         return toDto(roleRepository.save(role));
     }
 
