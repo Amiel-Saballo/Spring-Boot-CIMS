@@ -657,6 +657,15 @@ async function pageItems(root) {
     fetchAll("/api/items", { sort: "code,asc" }),
     loadReferences(),
   ]);
+  items.sort((a, b) => {
+    const statusOrder = { ACTIVE: 0, INACTIVE: 1 };
+    const statusCompare =
+      (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2);
+    return statusCompare || String(a.code ?? "").localeCompare(String(b.code ?? ""), undefined, {
+      numeric: true,
+      sensitivity: "base",
+    });
+  });
   root.innerHTML = `<div class="stack"><div class="card"><div class="card-head"><div><h2>Item Master</h2></div><button class="btn primary" id="addItem">Add new item</button></div>${tableMarkup(
     {
       id: "items",
