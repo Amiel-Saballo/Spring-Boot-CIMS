@@ -900,8 +900,20 @@ async function pageReceiving(root) {
 
     expiry.disabled = isEquipment;
 
-    // Required only for medicines
-    expiry.required = isMedicine;
+    const expiryDate = $("#recExpiry").value;
+
+    if (items.category === "MEDICINE") {
+      if (!expiryDate) {
+        return toast("Expiry date is required for medicines", "error");
+      }
+
+      if (expiryDate < today()) {
+        return toast("Expiry date cannot be in the past", "error");
+      }
+    }
+
+    // // Required only for medicines
+    // expiry.required = isMedicine;
 
     // Medicines cannot select a date before today
     expiry.min = isMedicine ? today() : "";
@@ -1632,10 +1644,74 @@ function reviewApproval(r) {
 }
 
 async function pageIssuance(root) {
-  const items = (
-    await fetchAll("/api/items", { status: "ACTIVE", sort: "code,asc" })
-  ).filter((i) => i.category !== "EQUIPMENT");
-  root.innerHTML = `<div class="card"><div class="card-head"><h2>Record Medicine / Supply Issuance</h2><span class="badge green">FEFO</span></div><div class="card-body"><form id="issuanceForm"><div class="form-grid"><div class="field"><label class="req">Employee number</label><input id="issEmployeeNo" required></div><div class="field"><label class="req">Employee name</label><input id="issEmployeeName" required></div><div class="field"><label>Department</label><input id="issDepartment"></div><div class="field"><label>Supervisor</label><input id="issSupervisor"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="issComplaint" required></div><div class="field"><label class="req">Disposition</label><select id="issDisposition"><option>Returned to work</option><option>Sent home</option><option>Referred to hospital</option></select></div><div class="field"><label class="req">Date</label><input id="issDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="issRemarks" maxlength="500"></textarea></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label><select id="issItem">${items.map((i) => `<option value="${i.id}">${esc(i.code)} · ${esc(i.name)}</option>`).join("")}</select></div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="issQty" type="number" min="1" value="1"><input id="issUom" disabled></div></div><div class="field"><button type="button" class="btn primary" id="addIssLine" style="margin-top:20px">Add item</button></div></div><div id="issueDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Record issuance</button><button type="button" class="btn" id="clearIss">Clear draft</button></div></form></div></div>`;
+  const [allItems, allBatches] = await Promise.all([
+    fetchAll("/api/items", {
+      status: "ACTIVE",
+      sort: "code,asc",
+    }),
+    fetchAll("/api/batches", {
+      sort: "expiryDate,asc",
+    }),
+  ]);
+
+  const issuanceDate = today();
+
+  const usableBatches = allBatches.filter(
+    (b) =>
+      b.status === "ACTIVE" &&
+      b.onHand > 0 &&
+      (!b.expiryDate || b.expiryDate >= issuanceDate),
+  );
+
+  const stockFor = (itemId) =>
+    usableBatches
+      .filter((b) => b.itemId == itemId)
+      .reduce((total, b) => total + Number(b.onHand || 0), 0);
+
+  const items = allItems.filter(
+    (i) =>
+      i.category !== "EQUIPMENT" &&
+      usableBatches.some((b) => b.itemId === i.id),
+  );
+
+  // const items = (
+  //   await fetchAll("/api/items", { status: "ACTIVE", sort: "code,asc" })
+  // ).filter((i) => i.category !== "EQUIPMENT");
+
+  // root.innerHTML = `<div class="card"><div class="card-head"><h2>Record Medicine / Supply Issuance</h2><span class="badge green">FEFO</span></div><div class="card-body"><form id="issuanceForm"><div class="form-grid"><div class="field"><label class="req">Employee number</label><input id="issEmployeeNo" required></div><div class="field"><label class="req">Employee name</label><input id="issEmployeeName" required></div><div class="field"><label>Department</label><input id="issDepartment"></div><div class="field"><label>Supervisor</label><input id="issSupervisor"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="issComplaint" required></div><div class="field"><label class="req">Disposition</label><select id="issDisposition"><option>Returned to work</option><option>Sent home</option><option>Referred to hospital</option></select></div><div class="field"><label class="req">Date</label><input id="issDate" type="date" value="${today()}" required></div><div class="field span-4"><label>Remarks</label><textarea id="issRemarks" maxlength="500"></textarea></div></div><div class="divider"></div><div class="form-grid"><div class="field span-2"><label class="req">Item</label><select id="issItem">${items.map((i) => `<option value="${i.id}">${esc(i.code)} · ${esc(i.name)}</option>`).join("")}</select></div><div class="field"><label class="req">Quantity / Unit</label><div class="inline-pair"><input id="issQty" type="number" min="1" value="1"><input id="issUom" disabled></div></div><div class="field"><button type="button" class="btn primary" id="addIssLine" style="margin-top:20px">Add item</button></div></div><div id="issueDraft" style="margin-top:14px"></div><div class="actions" style="margin-top:14px"><button class="btn primary">Record issuance</button><button type="button" class="btn" id="clearIss">Clear draft</button></div></form></div></div>`;
+  root.innerHTML = `<div class="card">
+    <div class="card-head">
+      <h2>Record Medicine / Supply Issuance</h2><span class="badge green">FEFO</span>
+    </div>
+    <div class="card-body">
+      <form id="issuanceForm">
+        <div class="form-grid">
+          <div class="field"><label class="req">Employee number</label><input id="issEmployeeNo" required></div>
+          <div class="field"><label class="req">Employee name</label><input id="issEmployeeName" required></div>
+          <div class="field"><label>Department</label><input id="issDepartment"></div>
+          <div class="field"><label>Supervisor</label><input id="issSupervisor"></div>
+          <div class="field span-2"><label class="req">Chief complaint</label><input id="issComplaint" required></div>
+          <div class="field"><label class="req">Disposition</label><select id="issDisposition">
+              <option>Returned to work</option>
+              <option>Sent home</option>
+              <option>Referred to hospital</option>
+            </select></div>
+          <div class="field"><label class="req">Date</label><input id="issDate" type="date" value="${today()}" required></div>
+          <div class="field span-4"><label>Remarks</label><textarea id="issRemarks" maxlength="500"></textarea></div>
+        </div>
+        <div class="divider"></div>
+        <div class="form-grid">
+          <div class="field span-2"><label class="req">Item</label><select id="issItem">${items.map((i) => `<option value="${i.id}">${esc(i.code)} · ${esc(i.name)} · ${stockFor(i.id)} ${esc(i.unitOfMeasure)} available</option>`).join("")}</select></div>
+          <div class="field"><label class="req">Quantity / Unit</label>
+            <div class="inline-pair"><input id="issQty" type="number" min="1" value="1"><input id="issUom" disabled></div>
+          </div>
+          <div class="field"><button type="button" class="btn primary" id="addIssLine" style="margin-top:20px">Add item</button></div>
+        </div>
+        <div id="issueDraft" style="margin-top:14px"></div>
+        <div class="actions" style="margin-top:14px"><button class="btn primary">Record issuance</button><button type="button" class="btn" id="clearIss">Clear draft</button></div>
+      </form>
+    </div>
+  </div>`;
   const sync = () => {
     $("#issUom").value =
       items.find((i) => i.id == $("#issItem").value)?.unitOfMeasure || "";
