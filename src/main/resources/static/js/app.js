@@ -2242,6 +2242,7 @@ function openEquipmentStatus(r) {
   const body = modal(
     `Edit equipment status · ${r.assetTag}`,
     `<form id="eqStatusForm"><div class="form-grid"><div class="field span-2"><label>Equipment</label><input value="${esc(r.equipmentName)}" disabled></div><div class="field"><label>Asset tag</label><input value="${esc(r.assetTag)}" disabled></div><div class="field"><label>Serial number</label><input value="${esc(r.serialNumber)}" disabled></div><div class="field"><label>Brand</label><input value="${esc(r.brand || "")}" disabled></div><div class="field"><label>Model</label><input value="${esc(r.model || "")}" disabled></div><div class="field"><label>Location</label><input value="${esc(r.location)}" disabled></div><div class="field"><label class="req">Status</label><select id="eqStatus">${["IN_USE", "MAINTENANCE", "RETIRED"].map((x) => `<option ${x === r.status ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label class="req">Adjustment reason</label><textarea id="eqReason" required></textarea></div></div><div class="modal-actions"><button type="button" class="btn" id="eqCancel">Cancel</button><button class="btn primary">Save status</button></div></form>`,
+  
   );
   $("#eqCancel", body).onclick = closeModal;
   $("#eqStatusForm", body).onsubmit = async (e) => {

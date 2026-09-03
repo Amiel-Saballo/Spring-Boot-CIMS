@@ -861,6 +861,7 @@ public class ReportExportService {
         List<List<Object>> rows = new ArrayList<>();
         List<Object> header = new ArrayList<>(
                 List.of("Asset Tag", "Item"));
+                
         header.addAll(MONTHS);
         rows.add(header);
         for (ReportDtos.EquipmentReportRow r : (List<ReportDtos.EquipmentReportRow>) report
