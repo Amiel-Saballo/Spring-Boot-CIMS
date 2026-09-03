@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/batches")
 @RequiredArgsConstructor
-@PreAuthorize("hasAuthority('PERM_BATCHES')")
+@PreAuthorize("hasAnyAuthority('PERM_BATCHES', 'PERM_ISSUANCE')")
 public class BatchRestController {
     private final BatchService service;
 
