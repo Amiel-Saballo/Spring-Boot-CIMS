@@ -430,7 +430,7 @@ function tableMarkup({
     .join("");
   const controls =
     search || filters.length
-      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
+      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}" ${String(o.value) === String(f.value ?? "") ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
       : "";
   return `<div class="table-box" data-table-id="${id}" data-search-fields="${esc((searchFields || []).join(","))}">${controls}<div class="table-wrap"><table class="data-table"><colgroup>${cols}</colgroup><thead><tr>${columns.map((c, i) => `<th class="${c.sortable === false ? "" : "sortable"}" data-col="${i}" data-key="${esc(c.key || "")}" data-type="${esc(c.type || "text")}">${esc(c.label)}${c.sortable === false ? "" : ' <span class="sort-ind">↕</span>'}</th>`).join("")}</tr></thead><tbody>${rows.map((r, ri) => `<tr data-row="${ri}">${columns.map((c) => `<td>${c.render ? c.render(r) : esc(r[c.key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="pagination"><span class="small muted table-count"></span><div class="pages"></div></div><script type="application/json" class="table-data">${esc(JSON.stringify(rows))}</script></div>`;
 }
@@ -672,6 +672,7 @@ async function pageItems(root) {
         },
         {
           key: "status",
+          value: "ACTIVE",
           allLabel: "All statuses",
           options: ["ACTIVE", "INACTIVE"].map((x) => ({
             value: x,
