@@ -1428,7 +1428,12 @@ ${tableMarkup({
     button.onclick = () => {
       const record = records.find((r) => r.id == button.dataset.id);
 
-      openReturnedReceiving(record);
+      openReturnedReceiving(record, async (updated) => {
+        const index = records.findIndex((r) => r.id == updated.id);
+        if (index >= 0) {
+          Object.assign(records[index], updated);
+        }
+      });
     };
   });
 
@@ -1465,7 +1470,7 @@ function reasonModal(title, label, onSave) {
     }
   };
 }
-async function openReturnedReceiving(record) {
+async function openReturnedReceiving(record, onRecordUpdated) {
   const refs = await loadReferences();
   const body = modal(
     `Returned receiving · ${record.referenceNumber}`,
@@ -1509,7 +1514,11 @@ async function openReturnedReceiving(record) {
             record.lines.find((x) => x.id == b.dataset.id),
             refs,
             async (updated) => {
-              record = updated;
+              Object.assign(record, updated);
+              if (updated.lines) record.lines = updated.lines;
+              if (typeof onRecordUpdated === "function") {
+                await onRecordUpdated(updated);
+              }
               render();
             },
           )),
@@ -1542,7 +1551,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
       quantity: Number($("#rlQty").value),
       brand: $("#rlBrand").value.trim() || null,
       batchNumber: eq ? null : $("#rlBatch").value.trim() || null,
-      expiryDate: eq ? null : $("#rlExpiry").value || null,
+      expiryDate: eq ? null : $("#recExpiry").value || null,
       model: eq ? $("#rlModel").value.trim() || null : null,
       serialNumber: eq ? $("#rlSerial").value.trim() || null : null,
       assetTag: eq ? $("#rlAsset").value.trim() || null : null,

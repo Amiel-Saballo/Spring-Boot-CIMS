@@ -53,6 +53,7 @@ public class IssuanceService {
 
     @Transactional
     public IssuanceDtos.Response create(IssuanceDtos.CreateRequest request, UserAccount user) {
+        batchRepository.markExpiredActiveBatches(BatchStatus.EXPIRED, BatchStatus.ACTIVE);
         if(!request.dateIssued().isEqual(LocalDate.now())){
             throw new BusinessRuleException("Issuance date must be the current date.");
         }
@@ -166,8 +167,12 @@ public class IssuanceService {
         List<Batch> batches = batchRepository.findIssuableBatchesFefo(
                 item.getId(), BatchStatus.ACTIVE, issuanceDate);
         for (Batch batch : batches) {
-            if (remaining <= 0)
-                break;
+            if (batch.getExpiryDate() != null && !batch.getExpiryDate().isAfter(LocalDate.now())) {
+                batch.setStatus(BatchStatus.EXPIRED);
+                batchRepository.save(batch);
+                continue;
+            }
+            if (remaining <= 0) break;
             int take = Math.min(remaining, batch.getOnHand());
             batch.setOnHand(batch.getOnHand() - take);
             if (batch.getOnHand() == 0)
