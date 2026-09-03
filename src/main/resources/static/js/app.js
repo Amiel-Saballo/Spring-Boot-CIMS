@@ -1565,6 +1565,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
       closeModal();
       toast("Returned item updated");
       await onUpdated(updated);
+      await renderPage();
     } catch (err) {
       toast(err.message, "error");
     }
