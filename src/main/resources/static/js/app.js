@@ -430,7 +430,7 @@ function tableMarkup({
     .join("");
   const controls =
     search || filters.length
-      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}">${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
+      ? `<div class="table-controls">${search ? `<input class="search-input" data-table-search="${id}" placeholder="Search records">` : ""}${filters.map((f) => `<select data-table-filter="${id}" data-key="${esc(f.key)}"><option value="">${esc(f.allLabel || "All")}</option>${f.options.map((o) => `<option value="${esc(o.value)}" ${String(o.value) === String(f.value ?? "") ? "selected" : ""}>${esc(o.label)}</option>`).join("")}</select>`).join("")}</div>`
       : "";
   return `<div class="table-box" data-table-id="${id}" data-search-fields="${esc((searchFields || []).join(","))}">${controls}<div class="table-wrap"><table class="data-table"><colgroup>${cols}</colgroup><thead><tr>${columns.map((c, i) => `<th class="${c.sortable === false ? "" : "sortable"}" data-col="${i}" data-key="${esc(c.key || "")}" data-type="${esc(c.type || "text")}">${esc(c.label)}${c.sortable === false ? "" : ' <span class="sort-ind">↕</span>'}</th>`).join("")}</tr></thead><tbody>${rows.map((r, ri) => `<tr data-row="${ri}">${columns.map((c) => `<td>${c.render ? c.render(r) : esc(r[c.key])}</td>`).join("")}</tr>`).join("")}</tbody></table></div><div class="pagination"><span class="small muted table-count"></span><div class="pages"></div></div><script type="application/json" class="table-data">${esc(JSON.stringify(rows))}</script></div>`;
 }
@@ -672,6 +672,7 @@ async function pageItems(root) {
         },
         {
           key: "status",
+          value: "ACTIVE",
           allLabel: "All statuses",
           options: ["ACTIVE", "INACTIVE"].map((x) => ({
             value: x,
@@ -731,8 +732,8 @@ async function pageItems(root) {
     (b) =>
       (b.onclick = () =>
         confirmModal(
-          "Deactivate item",
-          "This is a soft delete. The item will remain in historical records.",
+          "Delete item",
+          "This will only deactivate the item. The item will remain in the records.",
           async () => {
             await api(`/api/items/${b.dataset.id}`, { method: "DELETE" });
             toast("Item deactivated");
@@ -759,34 +760,131 @@ function openItemForm(item, refs) {
   const isEdit = !!item,
     body = modal(
       isEdit ? "Edit item" : "Add new item",
-      `<form id="itemForm"><div class="form-grid"><div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div><div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div><div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field"><label class="req">Unit of Measure</label><select id="itemUom">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div><div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div><div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div></div><div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div></form>`,
+      `<form id="itemForm">
+  <div class="form-grid">
+    <div class="field"><label class="req">Item code</label><input id="itemCode" value="${esc(item?.code || "")}" required></div>
+    <div class="field span-2"><label class="req">Item name</label><input id="itemName" value="${esc(item?.name || "")}" required></div>
+    <div class="field"><label class="req">Category</label><select id="itemCategory">${["MEDICINE", "SUPPLY", "EQUIPMENT"].map((x) => `<option ${x === item?.category ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    <div class="field"><label class="req">Unit of Measure</label><select id="itemUoM">${optionList(refs.uoms, "id", "name", item?.unitOfMeasureId)}<option value="new">+ Add manually…</option></select></div>
+        <div class="field span-2" id="newUoMPanel" style="display:none">
+      <div class="notice">
+        <div style="font-weight:600; margin-bottom:8px;">Add Unit of Measure</div>
+        <div class="field"><label class="req">Unit of Measure Name</label><input id="newUoMName" type="text" placeholder="e.g. Tablet, Box, Bottle" autocomplete="off"></div>
+        <div class="actions" style="margin-top:10px"><button type="button" class="btn primary small" id="saveNewUoM">Add Unit of Measure</button><button type="button" class="btn small" id="cancelNewUoM">Cancel</button></div>
+      </div>
+    </div>
+    <div class="field"><label class="req">Reorder level</label><input id="itemReorderLevel" type="number" min="0" max="100" value="${item?.reorderLevel ?? 0}" required></div>
+    <div class="field"><label class="req">Reorder quantity</label><input id="itemReorderQty" type="number" min="1" max="500" value="${item?.reorderQuantity ?? 1}" required></div>
+  </div>
+  <div class="modal-actions"><button type="button" class="btn" id="cancelItem">Cancel</button><button class="btn primary">Save item</button></div>
+</form>`,
     );
   $("#cancelItem", body).onclick = closeModal;
-  $("#itemUom", body).onchange = async (e) => {
-    if (e.target.value === "new") {
-      const name = prompt("Enter a new Unit of Measurement");
-      if (!name) {
-        e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
-        return;
-      }
-      try {
-        const u = await api("/api/settings/units-of-measure", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        });
-        refs.uoms.push(u);
-        e.target.insertAdjacentHTML(
-          "afterbegin",
-          `<option value="${u.id}">${esc(u.name)}</option>`,
-        );
-        e.target.value = u.id;
-      } catch (err) {
-        toast(err.message, "error");
-      }
+
+  const uomSelect = $("#itemUoM", body);
+  const newUoMPanel = $("#newUoMPanel", body);
+  const newUoMName = $("#newUoMName", body);
+  const saveNewUoM = $("#saveNewUoM", body);
+  const cancelNewUoM = $("#cancelNewUoM", body);
+
+  let previousUoM = uomSelect.value !== "new" ? uomSelect.value : "";
+
+  uomSelect.onchange = () => {
+    if (uomSelect.value === "new") {
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
+      setTimeout(() => newUoMName.focus(), 0);
+      uomSelect.disabled = true;
+    } else {
+      previousUoM = uomSelect.value;
+      newUoMPanel.style.display = "block";
+      newUoMName.value = "";
     }
   };
+
+  cancelNewUoM.onclick = () => {
+    newUoMPanel.style.display = "none";
+    newUoMName.value = "";
+    uomSelect.value = previousUoM || refs.uoms[0]?.id || "";
+  };
+
+  saveNewUoM.onclick = async () => {
+    const name = newUoMName.value.trim();
+
+    if (!name) {
+      return toast("Enter a Unit of Measure", "error");
+    }
+
+    try {
+      saveNewUoM.disabled = "true";
+
+      const u = await api("/api/settings/units-of-measure", {
+        method: "POST",
+        body: JSON.stringify({
+          name: name,
+        }),
+      });
+
+      refs.uoms.push(u);
+
+      const option = document.createElement("option");
+      option.value = u.id;
+      option.textContent = u.name;
+
+      const newOption = uomSelect.querySelector('option[value="new"]');
+      uomSelect.insertBefore(option, newOption);
+
+      uomSelect.value = u.id;
+      previousUoM = String(u.id);
+
+      newUoMPanel.style.display = "none";
+      newUoMName.value = "";
+
+      toast("Unit of Measure added");
+    } catch (err) {
+      toast(err.message, "error");
+    } finally {
+      saveNewUoM.disabled = false;
+      uomSelect.disabled = false;
+    }
+  };
+
+  newUoMName.onkeydown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveNewUoM.click();
+    }
+  };
+
+  // $("#itemUom", body).onchange = async (e) => {
+  //   if (e.target.value === "new") {
+  //     const name = prompt("Enter a new Unit of Measurement");
+  //     if (!name) {
+  //       e.target.value = item?.unitOfMeasureId || refs.uoms[0]?.id || "";
+  //       return;
+  //     }
+  //     try {
+  //       const u = await api("/api/settings/units-of-measure", {
+  //         method: "POST",
+  //         body: JSON.stringify({ name }),
+  //       });
+  //       refs.uoms.push(u);
+  //       e.target.insertAdjacentHTML(
+  //         "afterbegin",
+  //         `<option value="${u.id}">${esc(u.name)}</option>`,
+  //       );
+  //       e.target.value = u.id;
+  //     } catch (err) {
+  //       toast(err.message, "error");
+  //     }
+  //   }
+  // };
   $("#itemForm", body).onsubmit = async (e) => {
     e.preventDefault();
+    if ($("#itemUoM", body).value === "new") {
+      return toast("Add or select a Unit of Measure first", "error");
+    }
+
     const req = {
       code: $("#itemCode").value.trim(),
       name: $("#itemName").value.trim(),
@@ -1565,6 +1663,7 @@ function editReturnedLine(record, line, refs, onUpdated) {
       closeModal();
       toast("Returned item updated");
       await onUpdated(updated);
+      await renderPage();
     } catch (err) {
       toast(err.message, "error");
     }
@@ -1644,13 +1743,293 @@ async function pageApprovals(root) {
         )),
   );
 }
+
 function reviewApproval(r) {
-  modal(
+  const pageSize = 10;
+  let currentPage = 0;
+
+  const body = modal(
     `Review receiving · ${r.referenceNumber}`,
-    `<div class="form-grid"><div class="field"><label>Reference number</label><div class="notice mono">${esc(r.referenceNumber)}</div></div><div class="field"><label>Supplier</label><div class="notice">${esc(r.supplierName)}</div></div><div class="field"><label>Date received</label><div class="notice">${fmtDate(r.dateReceived)}</div></div><div class="field"><label>Encoded by</label><div class="notice">${esc(r.receivedBy)}</div></div><div class="field span-4"><label>Remarks</label><div class="notice">${esc(r.remarks || "—")}</div></div></div><div class="stack" style="margin-top:14px">${r.lines.map((l) => `<div class="card"><div class="card-body"><div class="grid cols-3"><div><div class="small muted">Item</div><b>${esc(l.itemName)}</b><div class="small mono muted">${esc(l.itemCode)}</div></div><div><div class="small muted">Quantity</div><b class="nowrap">${l.quantity} ${esc(l.unitOfMeasure)}</b></div><div><div class="small muted">Details</div>${l.category === "EQUIPMENT" ? `Brand: ${esc(l.brand || "—")}<br>Model: ${esc(l.model || "—")}<br>Serial number: ${esc(l.serialNumber || "—")}<br>Asset tag: ${esc(l.assetTag || "—")}<br>Location: ${esc(l.location)}` : `Brand: ${esc(l.brand || "—")}<br>Batch number: ${esc(l.batchNumber || "—")}<br>Expiry: ${fmtDate(l.expiryDate)}<br>Location: ${esc(l.location)}`}</div></div></div></div>`).join("")}</div>`,
+
+    `
+<div class="form-grid">
+
+<div class="field">
+<label>Reference number</label>
+<div class="notice mono">
+${esc(r.referenceNumber)}
+</div>
+</div>
+
+<div class="field">
+<label>Supplier</label>
+<div class="notice">
+${esc(r.supplierName)}
+</div>
+</div>
+
+<div class="field">
+<label>Date received</label>
+<div class="notice">
+${fmtDate(r.dateReceived)}
+</div>
+</div>
+
+<div class="field">
+<label>Encoded by</label>
+<div class="notice">
+${esc(r.receivedBy)}
+</div>
+</div>
+
+<div class="field span-4">
+<label>Remarks</label>
+<div class="notice">
+${esc(r.remarks || "—")}
+</div>
+</div>
+
+</div>
+
+
+<div
+id="approvalReviewItems"
+class="stack"
+style="margin-top:14px"
+></div>
+
+
+<div
+id="approvalReviewPagination"
+class="pagination"
+>
+<span
+class="small muted"
+id="approvalReviewCount"
+></span>
+
+<div
+class="pages"
+id="approvalReviewPages"
+></div>
+</div>
+`,
+
     { wide: true },
   );
+
+  const itemsContainer = $("#approvalReviewItems", body);
+
+  const count = $("#approvalReviewCount", body);
+
+  const pagesContainer = $("#approvalReviewPages", body);
+
+  const renderItems = () => {
+    const totalItems = r.lines.length;
+
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    currentPage = Math.min(currentPage, totalPages - 1);
+
+    const start = currentPage * pageSize;
+
+    const end = Math.min(start + pageSize, totalItems);
+
+    const pageLines = r.lines.slice(start, end);
+
+    // -------------------------------------
+    // Render only 10 items at a time
+    // -------------------------------------
+
+    itemsContainer.innerHTML = pageLines
+      .map(
+        (l) => `
+
+<div class="card">
+
+<div class="card-body">
+
+<div class="grid cols-3">
+
+<div>
+<div class="small muted">
+Item
+</div>
+
+<b>
+${esc(l.itemName)}
+</b>
+
+<div class="small mono muted">
+${esc(l.itemCode)}
+</div>
+</div>
+
+
+<div>
+<div class="small muted">
+Quantity
+</div>
+
+<b class="nowrap">
+${l.quantity}
+${esc(l.unitOfMeasure)}
+</b>
+</div>
+
+
+<div>
+
+<div class="small muted">
+Details
+</div>
+
+${
+  l.category === "EQUIPMENT"
+    ? `
+Brand:
+${esc(l.brand || "—")}
+<br>
+
+Model:
+${esc(l.model || "—")}
+<br>
+
+Serial number:
+${esc(l.serialNumber || "—")}
+<br>
+
+Asset tag:
+${esc(l.assetTag || "—")}
+<br>
+
+Location:
+${esc(l.location || "—")}
+`
+    : `
+Brand:
+${esc(l.brand || "—")}
+<br>
+
+Batch number:
+${esc(l.batchNumber || "—")}
+<br>
+
+Expiry:
+${l.expiryDate ? fmtDate(l.expiryDate) : "—"}
+<br>
+
+Location:
+${esc(l.location || "—")}
+`
 }
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+`,
+      )
+      .join("");
+
+    // -------------------------------------
+    // Count
+    // -------------------------------------
+
+    if (totalItems === 0) {
+      count.textContent = "0 items";
+    } else {
+      count.textContent = `${start + 1}–${end} of ${totalItems} items`;
+    }
+
+    // -------------------------------------
+    // Hide pagination if <= 10 items
+    // -------------------------------------
+
+    if (totalPages <= 1) {
+      pagesContainer.innerHTML = "";
+
+      return;
+    }
+
+    // -------------------------------------
+    // Pagination buttons
+    // -------------------------------------
+
+    pagesContainer.innerHTML = `
+
+<button
+type="button"
+class="page-btn"
+data-review-page="prev"
+${currentPage === 0 ? "disabled" : ""}
+>
+‹
+</button>
+
+
+${Array.from(
+  { length: totalPages },
+  (_, index) => `
+
+<button
+type="button"
+class="page-btn
+${index === currentPage ? "active" : ""}
+"
+data-review-page="${index}"
+>
+${index + 1}
+</button>
+
+`,
+).join("")}
+
+
+<button
+type="button"
+class="page-btn"
+data-review-page="next"
+${currentPage === totalPages - 1 ? "disabled" : ""}
+>
+›
+</button>
+`;
+
+    // -------------------------------------
+    // Bind page buttons
+    // -------------------------------------
+
+    $$("[data-review-page]", pagesContainer).forEach((button) => {
+      button.onclick = () => {
+        const page = button.dataset.reviewPage;
+
+        if (page === "prev") {
+          currentPage = Math.max(0, currentPage - 1);
+        } else if (page === "next") {
+          currentPage = Math.min(totalPages - 1, currentPage + 1);
+        } else {
+          currentPage = Number(page);
+        }
+
+        renderItems();
+      };
+    });
+  };
+
+  renderItems();
+}
+// function reviewApproval(r) {
+//   modal(
+//     `Review receiving · ${r.referenceNumber}`,
+//     `<div class="form-grid"><div class="field"><label>Reference number</label><div class="notice mono">${esc(r.referenceNumber)}</div></div><div class="field"><label>Supplier</label><div class="notice">${esc(r.supplierName)}</div></div><div class="field"><label>Date received</label><div class="notice">${fmtDate(r.dateReceived)}</div></div><div class="field"><label>Encoded by</label><div class="notice">${esc(r.receivedBy)}</div></div><div class="field span-4"><label>Remarks</label><div class="notice">${esc(r.remarks || "—")}</div></div></div><div class="stack" style="margin-top:14px">${r.lines.map((l) => `<div class="card"><div class="card-body"><div class="grid cols-3"><div><div class="small muted">Item</div><b>${esc(l.itemName)}</b><div class="small mono muted">${esc(l.itemCode)}</div></div><div><div class="small muted">Quantity</div><b class="nowrap">${l.quantity} ${esc(l.unitOfMeasure)}</b></div><div><div class="small muted">Details</div>${l.category === "EQUIPMENT" ? `Brand: ${esc(l.brand || "—")}<br>Model: ${esc(l.model || "—")}<br>Serial number: ${esc(l.serialNumber || "—")}<br>Asset tag: ${esc(l.assetTag || "—")}<br>Location: ${esc(l.location)}` : `Brand: ${esc(l.brand || "—")}<br>Batch number: ${esc(l.batchNumber || "—")}<br>Expiry: ${fmtDate(l.expiryDate)}<br>Location: ${esc(l.location)}`}</div></div></div></div>`).join("")}</div>`,
+//     { wide: true },
+//   );
+// }
 
 async function pageIssuance(root) {
   const [allItems, allBatches] = await Promise.all([
@@ -1875,9 +2254,13 @@ function openIssuanceEdit(r) {
   let lines = r.lines.map((x) => ({ ...x }));
   const body = modal(
     `Edit issuance · ${r.referenceNumber}`,
-    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary">Save changes</button></div></form>`,
+    `<form id="editIssForm"><div class="form-grid"><div class="field"><label class="req">Date</label><input id="eiDate" type="date" value="${r.dateIssued}" required></div><div class="field"><label class="req">Employee number</label><input id="eiNo" value="${esc(r.employeeNumber)}" required></div><div class="field"><label class="req">Employee name</label><input id="eiName" value="${esc(r.employeeName)}" required></div><div class="field"><label>Department</label><input id="eiDept" value="${esc(r.department || "")}"></div><div class="field"><label>Supervisor</label><input id="eiSup" value="${esc(r.supervisor || "")}"></div><div class="field span-2"><label class="req">Chief complaint</label><input id="eiComplaint" value="${esc(r.chiefComplaint)}" required></div><div class="field"><label class="req">Disposition</label><select id="eiDisp">${["Returned to work", "Sent home", "Referred to hospital"].map((x) => `<option ${x === r.disposition ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label>Remarks</label><textarea id="eiRemarks">${esc(r.remarks || "")}</textarea></div></div><div id="editIssLines" style="margin-top:14px"></div><div class="modal-actions"><button type="button" class="btn" id="eiCancel">Cancel</button><button class="btn primary" id="eiSave" disabled>Save changes</button></div></form>`,
     { wide: true },
   );
+  const initialLinesState = JSON.stringify(
+    lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) })),
+  );
+
   const render = () => {
     $("#editIssLines", body).innerHTML = tableMarkup({
       id: "editIssLinesTable",
@@ -1910,10 +2293,38 @@ function openIssuanceEdit(r) {
             return toast("An issuance must contain at least one item", "error");
           lines = lines.filter((x) => x.id != b.dataset.id);
           render();
+          checkChanges();
         }),
     );
   };
   render();
+  const formControls = Array.from(
+    $("#editIssForm", body).querySelectorAll("input, select, textarea"),
+  );
+  const initialFormValues = new Map(
+    formControls.map((input) => [input, input.value]),
+  );
+  const checkChanges = () => {
+    const formHasChanged = formControls.some(
+      (input) => input.value !== initialFormValues.get(input),
+    );
+
+    $$(".lineQty", body).forEach((inp) => {
+      const l = lines.find((x) => x.id == inp.dataset.id);
+      if (l) l.quantity = Number(inp.value);
+    });
+
+    const currentLinesState = JSON.stringify(
+      lines.map((l) => ({ id: l.id, quantity: Number(l.quantity) })),
+    );
+    const linesHaveChanged = currentLinesState !== initialLinesState;
+
+    $("#eiSave", body).disabled = !(formHasChanged || linesHaveChanged);
+  };
+
+  $("#editIssForm", body).addEventListener("input", checkChanges);
+  $("#editIssForm", body).addEventListener("change", checkChanges);
+  checkChanges();
   $("#eiCancel", body).onclick = closeModal;
   $("#editIssForm", body).onsubmit = async (e) => {
     e.preventDefault();
@@ -2828,7 +3239,7 @@ async function pageReports(root) {
           render: (r) => fmtDateTime(r.generatedAt),
         },
         { label: "Generated By", key: "generatedBy", width: 180 },
-        { label: "Parameters", key: "parametersJson", width: 380 },
+        // { label: "Parameters", key: "parametersJson", width: 380 },
         {
           label: "Actions",
           sortable: false,
@@ -3199,7 +3610,7 @@ function showReport(report) {
       rows,
     });
   else if (report.reportType === "EQUIPMENT_REGISTRY") {
-    content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th style="width:150px">Property Number</th><th style="width:220px">Item</th>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m) => `<th style="width:70px">${m}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.assetTag)}</td><td>${esc(r.itemName)}</td>${r.monthlyPresence.map((v) => `<td>${v ?? ""}</td>`).join("")}</tr><tr><td><b>Remarks</b></td><td colspan="13">${esc(r.remarks || "")}</td></tr>`).join("")}</tbody></table></div>`;
+    content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th style="width:150px">Asset Tag</th><th style="width:220px">Item</th>${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].map((m) => `<th style="width:70px">${m}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.assetTag)}</td><td>${esc(r.itemName)}</td>${r.monthlyPresence.map((v) => `<td>${v ?? ""}</td>`).join("")}</tr><tr><td><b>Remarks</b></td><td colspan="13">${esc(r.remarks || "")}</td></tr>`).join("")}</tbody></table></div>`;
   } else {
     content = `<div class="report-table-wrap"><table class="report-table"><thead><tr><th>Item</th><th>Running Bal</th><th>Total Monthly Dispensed</th><th>Beginning Inv</th>${Array.from({ length: 5 }, (_, i) => `<th>W${i + 1} DEL</th><th>W${i + 1} Pullout/Returns</th><th>W${i + 1} Dispensed</th><th>W${i + 1} Ending Inv</th><th>W${i + 1} Actual Inv</th><th>W${i + 1} VAR</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr><td>${esc(r.itemName)}</td><td>${r.runningBalance}</td><td>${r.totalMonthlyDispensed}</td><td>${r.beginningInventory}</td>${r.weeks.map((w) => `<td>${w.delivery}</td><td>0</td><td>${w.dispensed}</td><td>${w.endingInventory}</td><td>${w.actualInventory}</td><td>${w.variance}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   }

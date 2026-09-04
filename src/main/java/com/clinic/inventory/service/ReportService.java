@@ -279,7 +279,11 @@ public class ReportService {
                                                 .flatMap(i -> i.getLines().stream())
                                                 .filter(l -> l.getItem().getId().equals(item.getId()))
                                                 .mapToInt(IssuanceLine::getQuantity).sum();
-                                int ending = running + delivery - dispensed; // Pull Out /
+                                int disposed = disposals.stream()
+                                                .filter(d -> weekOfMonth(d.getDisposalDate()) == w)
+                                                .filter(d -> d.getItem().getId().equals(item.getId()))
+                                                .mapToInt(DisposalRecord::getQuantity).sum();
+                                int ending = running + delivery - dispensed - disposed; // Pull Out /
                                                                              // Return is always
                                                                              // 0 by
                                                                              // requirement.
