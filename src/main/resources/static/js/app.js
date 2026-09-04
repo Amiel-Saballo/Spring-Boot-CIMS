@@ -129,6 +129,10 @@ const labelize = (value) =>
     .replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (m) => m.toUpperCase());
+const equipmentStatusLabel = (value) =>
+  ({ IN_USE: "Operational", MAINTENANCE: "Defective", RETIRED: "Disposed", DISPOSED: "Disposed" })[
+    value
+  ] || labelize(value);
 const hasPerm = (code) => !!app.session?.permissions?.includes(code);
 const badge = (value) =>
   `<span class="badge ${esc(value)}">${esc(labelize(value))}</span>`;
@@ -714,7 +718,8 @@ async function pageItems(root) {
           label: "Status",
           key: "status",
           width: 105,
-          render: (r) => badge(r.status),
+          render: (r) =>
+            `<span class="badge ${esc(r.status)}">${esc(equipmentStatusLabel(r.status))}</span>`,
         },
         {
           label: "Actions",
@@ -2121,7 +2126,7 @@ async function pageEquipment(root) {
 function openEquipmentStatus(r) {
   const body = modal(
     `Edit equipment status · ${r.assetTag}`,
-    `<form id="eqStatusForm"><div class="form-grid"><div class="field span-2"><label>Equipment</label><input value="${esc(r.equipmentName)}" disabled></div><div class="field"><label>Asset tag</label><input value="${esc(r.assetTag)}" disabled></div><div class="field"><label>Serial number</label><input value="${esc(r.serialNumber)}" disabled></div><div class="field"><label>Brand</label><input value="${esc(r.brand || "")}" disabled></div><div class="field"><label>Model</label><input value="${esc(r.model || "")}" disabled></div><div class="field"><label>Location</label><input value="${esc(r.location)}" disabled></div><div class="field"><label class="req">Status</label><select id="eqStatus">${["IN_USE", "MAINTENANCE", "RETIRED"].map((x) => `<option ${x === r.status ? "selected" : ""}>${x}</option>`).join("")}</select></div><div class="field span-4"><label class="req">Adjustment reason</label><textarea id="eqReason" required></textarea></div></div><div class="modal-actions"><button type="button" class="btn" id="eqCancel">Cancel</button><button class="btn primary">Save status</button></div></form>`,
+    `<form id="eqStatusForm"><div class="form-grid"><div class="field span-2"><label>Equipment</label><input value="${esc(r.equipmentName)}" disabled></div><div class="field"><label>Asset tag</label><input value="${esc(r.assetTag)}" disabled></div><div class="field"><label>Serial number</label><input value="${esc(r.serialNumber)}" disabled></div><div class="field"><label>Brand</label><input value="${esc(r.brand || "")}" disabled></div><div class="field"><label>Model</label><input value="${esc(r.model || "")}" disabled></div><div class="field"><label>Location</label><input value="${esc(r.location)}" disabled></div><div class="field"><label class="req">Status</label><select id="eqStatus">${["IN_USE", "MAINTENANCE", "RETIRED"].map((x) => `<option value="${x}" ${x === r.status ? "selected" : ""}>${equipmentStatusLabel(x)}</option>`).join("")}</select></div><div class="field span-4"><label class="req">Adjustment reason</label><textarea id="eqReason" required></textarea></div></div><div class="modal-actions"><button type="button" class="btn" id="eqCancel">Cancel</button><button class="btn primary">Save status</button></div></form>`,
   );
   $("#eqCancel", body).onclick = closeModal;
   $("#eqStatusForm", body).onsubmit = async (e) => {
