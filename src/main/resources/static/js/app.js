@@ -661,10 +661,13 @@ async function pageItems(root) {
     const statusOrder = { ACTIVE: 0, INACTIVE: 1 };
     const statusCompare =
       (statusOrder[a.status] ?? 2) - (statusOrder[b.status] ?? 2);
-    return statusCompare || String(a.code ?? "").localeCompare(String(b.code ?? ""), undefined, {
-      numeric: true,
-      sensitivity: "base",
-    });
+    return (
+      statusCompare ||
+      String(a.code ?? "").localeCompare(String(b.code ?? ""), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+    );
   });
   root.innerHTML = `<div class="stack"><div class="card"><div class="card-head"><div><h2>Item Master</h2></div><button class="btn primary" id="addItem">Add new item</button></div>${tableMarkup(
     {
@@ -806,7 +809,7 @@ function openItemForm(item, refs) {
       uomSelect.disabled = true;
     } else {
       previousUoM = uomSelect.value;
-      newUoMPanel.style.display = "block";
+      newUoMPanel.style.display = "none";
       newUoMName.value = "";
     }
   };
@@ -898,7 +901,7 @@ function openItemForm(item, refs) {
       code: $("#itemCode").value.trim(),
       name: $("#itemName").value.trim(),
       category: $("#itemCategory").value,
-      unitOfMeasureId: Number($("#itemUom").value),
+      unitOfMeasureId: Number($("#itemUoM").value),
       reorderLevel: Number($("#itemReorderLevel").value),
       reorderQuantity: Number($("#itemReorderQty").value),
     };
